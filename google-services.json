@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "553282924967",
+    "project_id": "controlaccionv2",
+    "storage_bucket": "controlaccionv2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:553282924967:android:a5cc4ac693d1d837104682",
+        "android_client_info": {
+          "package_name": "com.humberju.controlaccionv2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX-gsEE37Ry38wlg1fr1xFgFbUHAQudOc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

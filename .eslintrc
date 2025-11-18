@@ -1,0 +1,36 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "extends": [
+    "expo",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "react",
+    "react-hooks"
+  ],
+  "rules": {
+/*  Warning removed for development purposes
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off" */
+    "no-unused-vars": 0, // Disable no-unused-vars warning
+    "react-hooks/exhaustive-deps": 0, // Disable exhaustive-deps warning
+    "react/prop-types": 0, // Disable prop-types warning (if applicable)
+    "react/react-in-jsx-scope": 0 // Disable unnecessary React import (React 18+)
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+}
