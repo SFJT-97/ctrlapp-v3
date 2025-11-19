@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { ScrollView, View, FlatList, TouchableOpacity, Platform, KeyboardAvoidingView, StyleSheet } from 'react-native'
+import { ScrollView, View, TouchableOpacity, Platform, KeyboardAvoidingView, StyleSheet } from 'react-native'
 import { useTheme, Text, Surface, TextInput } from 'react-native-paper'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useLazyQuery, gql, useMutation } from '@apollo/client'
 import { BarChart } from 'react-native-gifted-charts'
-import { BottomSheetModal, BottomSheetView, BottomSheetModalProvider } from '@gorhom/bottom-sheet'
+import { BottomSheetModal, BottomSheetView, BottomSheetModalProvider, BottomSheetFlatList } from '@gorhom/bottom-sheet'
 import { useMyCompanySectors } from '../../../../../context/hooks/companySectorQ'
 import { useMe } from '../../../../../context/hooks/userQH'
 
@@ -36,12 +36,21 @@ const addNewTempValueM = gql`
 const BottomSheetSelector = ({ title, options, onSelect, selectedValue, theme, bottomSheetRef }) => {
   const [search, setSearch] = useState('')
   const filteredOptions = useMemo(
-    () => options.filter((option) => option.value.toLowerCase().includes(search.toLowerCase())),
+    () => {
+      if (!Array.isArray(options) || options.length === 0) return []
+      return options.filter((option) => {
+        const searchValue = search.toLowerCase()
+        const optionValue = option?.value?.toLowerCase() || ''
+        const optionShow = option?.show?.toLowerCase() || ''
+        return optionValue.includes(searchValue) || optionShow.includes(searchValue)
+      })
+    },
     [options, search]
   )
 
-  return (
-    <BottomSheetView style={[styles.sheetContainer, { backgroundColor: theme.colors.background }]}>
+  // Header component for the FlatList
+  const ListHeaderComponent = useCallback(() => (
+    <View style={styles.headerContainer}>
       <Text style={[styles.sheetTitle, { color: theme.colors.onBackground }]}>{title}</Text>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -58,28 +67,50 @@ const BottomSheetSelector = ({ title, options, onSelect, selectedValue, theme, b
           theme={{ colors: { background: theme.colors.background } }}
         />
       </KeyboardAvoidingView>
-      <FlatList
-        data={filteredOptions}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.option,
-              item.value === selectedValue && { backgroundColor: theme.colors.elevation.level5 }
-            ]}
-            onPress={() => {
-              onSelect(item.value)
-              setSearch('')
-              bottomSheetRef.current?.dismiss()
-            }}
-          >
-            <Text style={[styles.optionText, { color: theme.colors.onBackground }]}>
-              {item.show || item.value}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
-    </BottomSheetView>
+    </View>
+  ), [title, theme, search])
+
+  // Empty component
+  const ListEmptyComponent = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>
+        {options.length === 0 ? 'No options available' : 'No results found'}
+      </Text>
+    </View>
+  ), [options.length, theme])
+
+  const renderItem = useCallback(({ item }) => {
+    if (!item || !item.key) return null
+    return (
+      <TouchableOpacity
+        style={[
+          styles.option,
+          { backgroundColor: theme.colors.surface },
+          item.value === selectedValue && { backgroundColor: theme.colors.elevation.level5 }
+        ]}
+        onPress={() => {
+          onSelect(item.value)
+          setSearch('')
+          bottomSheetRef.current?.dismiss()
+        }}
+      >
+        <Text style={[styles.optionText, { color: theme.colors.onBackground }]}>
+          {item.show || item.value}
+        </Text>
+      </TouchableOpacity>
+    )
+  }, [selectedValue, theme, onSelect, bottomSheetRef])
+
+  return (
+    <BottomSheetFlatList
+      data={filteredOptions}
+      renderItem={renderItem}
+      keyExtractor={(item) => item?.key || String(item?.value || Math.random())}
+      ListHeaderComponent={ListHeaderComponent}
+      ListEmptyComponent={ListEmptyComponent}
+      contentContainerStyle={styles.listContentContainer}
+      keyboardShouldPersistTaps='handled'
+    />
   )
 }
 
@@ -166,8 +197,10 @@ const FilterSelector = ({
   }, [])
 
   const handlePresentSector = useCallback(() => {
+    console.log('Opening sector modal, sectors data:', sectors)
+    console.log('Sectors length:', sectors?.length)
     bottomSheetRefSector.current?.present()
-  }, [])
+  }, [sectors])
 
   return (
     <View style={styles.filterContainer}>
@@ -195,10 +228,10 @@ const FilterSelector = ({
       </View>
       <BottomSheetModal
         ref={bottomSheetRefGroupBy}
-        index={1}
+        index={0}
         snapPoints={snapPoints}
         backgroundStyle={{ backgroundColor: theme.colors.background }}
-        stackBehavior='push'
+        enablePanDownToClose
         onChange={(index) => console.log('Group By Modal index:', index)}
       >
         <BottomSheetSelector
@@ -215,16 +248,22 @@ const FilterSelector = ({
       </BottomSheetModal>
       <BottomSheetModal
         ref={bottomSheetRefSector}
-        index={1}
+        index={0}
         snapPoints={snapPoints}
         backgroundStyle={{ backgroundColor: theme.colors.background }}
-        stackBehavior='push'
-        onChange={(index) => console.log('Sector Modal index:', index)}
+        enablePanDownToClose
+        onChange={(index) => {
+          console.log('Sector Modal index:', index)
+          if (index === -1) {
+            console.log('Sector modal closed')
+          }
+        }}
       >
         <BottomSheetSelector
           title='Select Sector'
-          options={sectors}
+          options={Array.isArray(sectors) ? sectors : []}
           onSelect={(val) => {
+            console.log('Sector selected:', val)
             setMSelected(val)
             setAuxSector(val)
           }}
@@ -242,7 +281,7 @@ const CustomBarChart = () => {
   const { field, prevQuery, value } = useLocalSearchParams()
   const router = useRouter()
   const [addNewTempValue] = useMutation(addNewTempValueM, { fetchPolicy: 'network-only' })
-  const { myCompanySectors } = useMyCompanySectors()
+  const { sectors: myCompanySectors, loading: sectorsLoading, error: sectorsError } = useMyCompanySectors()
   const { me } = useMe()
 
   const [data, setData] = useState([])
@@ -268,14 +307,36 @@ const CustomBarChart = () => {
   }, [goNextChart, dataTo, router])
 
   useEffect(() => {
-    if (myCompanySectors && myCompanySectors !== 'Loading' && myCompanySectors !== 'ApolloError') {
-      const temp = myCompanySectors.map((el) => ({
-        key: el.idCompanySector,
-        value: el.companySectorDescription
-      }))
-      setData(temp)
+    console.log('myCompanySectors changed:', myCompanySectors)
+    console.log('sectorsLoading:', sectorsLoading)
+    console.log('sectorsError:', sectorsError)
+    
+    if (sectorsLoading) {
+      console.log('Sectors are still loading...')
+      return
     }
-  }, [myCompanySectors])
+    
+    if (sectorsError) {
+      console.log('Sectors error:', sectorsError)
+      setData([])
+      return
+    }
+    
+    if (myCompanySectors && Array.isArray(myCompanySectors) && myCompanySectors.length > 0) {
+      const temp = myCompanySectors
+        .filter((el) => el && el.idCompanySector && el.companySectorDescription)
+        .map((el) => ({
+          key: String(el.idCompanySector),
+          value: String(el.companySectorDescription),
+          show: String(el.companySectorDescription)
+        }))
+      console.log('Processed sectors data:', temp)
+      setData(temp)
+    } else {
+      console.log('Sectors data is empty or invalid:', myCompanySectors)
+      setData([])
+    }
+  }, [myCompanySectors, sectorsLoading, sectorsError])
 
   useEffect(() => {
     if (me && me !== 'Loading...' && me !== 'ApolloError') {
@@ -411,9 +472,10 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 16
   },
-  sheetContainer: {
-    flex: 1,
-    padding: 16
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8
   },
   sheetTitle: {
     fontSize: 20,
@@ -426,6 +488,10 @@ const styles = StyleSheet.create({
   searchInput: {
     height: 40
   },
+  listContentContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16
+  },
   option: {
     padding: 12,
     borderRadius: 8,
@@ -433,6 +499,15 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 16
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center'
   },
   chartContainer: {
     width: '100%',

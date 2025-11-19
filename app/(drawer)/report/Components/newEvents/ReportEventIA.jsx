@@ -16,11 +16,10 @@ import EventSubtype from './EventSubtype'
 import EventClassification from './EventClassification'
 import RiskQualification from './RiskQualification'
 import SolutionState from './SolutionState'
-import ImageVideo from './ImageVideo'
+import MediaGrid from './MediaGrid'
 import uploadFile from '../../../../../globals/uploadFile'
 
 import { getFormatedDate } from 'react-native-modern-datepicker'
-import CameraComponent from './CameraComponent'
 
 // global variables
 import { API_URL } from '../../../../../globals/variables/globalVariables'
@@ -138,11 +137,6 @@ export default function ReportEventIA (args) {
   // Este estado es para saber cuando se terminó de subir información
   const [uploaded, setUploaded] = useState(false)
 
-  // Estado para saber si se activó la camara o no
-  const [isCameraActive, setIsCameraActive] = useState(false)
-
-  // Estado para saber desde la cámara nueva, cual SetImage usar
-  const [cameraSelected, setCameraSelected] = useState(1)
 
   // Estado para saber si hay conexión a internet o no
   const [netState, SetNetState] = useState(false)
@@ -325,46 +319,21 @@ export default function ReportEventIA (args) {
     return () => backHandler.remove() // limpieza al desmontar
   }, [])
 
-  if (isCameraActive) {
-    let seterSelected = null
-    let modeSelected = 'picture'
-    switch (cameraSelected) {
-      case 1:
-        seterSelected = setImage1
-        break
-      case 2:
-        seterSelected = setImage2
-        break
-      case 3:
-        seterSelected = setImage3
-        break
-      case 4:
-        modeSelected = 'video'
-        seterSelected = SetVideo
-        break
-    }
-    return (
-      <CameraComponent mode={modeSelected} setImageVideo={seterSelected} setIsCameraActive={setIsCameraActive} isCameraActive={isCameraActive} />
-    )
-  } else {
-    return (
-      <ScrollView nestedScrollEnabled>
-        <View style={{ rowGap: 30, marginHorizontal: 15, marginTop: 25, marginBottom: 60 }}>
+  return (
+    <ScrollView nestedScrollEnabled>
+      <View style={{ rowGap: 30, marginHorizontal: 15, marginTop: 25, marginBottom: 60 }}>
 
-          <ImageVideo
-            setImage1={setImage1}
-            setImage2={setImage2}
-            setImage3={setImage3}
-            setVideo={SetVideo}
-            image1={image1}
-            image2={image2}
-            image3={image3}
-            video={video}
-            setIsCameraActive={setIsCameraActive}
-            isCameraActive={isCameraActive}
-            setCameraSelected={setCameraSelected}
-            netState={netState}
-          />
+        <MediaGrid
+          image1={image1}
+          setImage1={setImage1}
+          image2={image2}
+          setImage2={setImage2}
+          image3={image3}
+          setImage3={setImage3}
+          video={video}
+          setVideo={SetVideo}
+          netState={netState}
+        />
 
           <ActionConditionButton setEventType={setEventType} eventType={eventType} fromAIReport={fromAIReport} />
 
@@ -388,9 +357,8 @@ export default function ReportEventIA (args) {
 
           {load && <CustomActivityIndicator />}
 
-        </View>
+      </View>
 
-      </ScrollView>
-    )
-  }
+    </ScrollView>
+  )
 }

@@ -11,6 +11,9 @@ const TimerCircle = ({ duration, handleRecordAudio, stopListening = undefined })
   const theme = useTheme()
 
   useEffect(() => {
+    // Reset timer when component mounts or duration changes
+    setTimeLeft(duration)
+    
     const interval = setInterval(() => {
       setTimeLeft((prevTime) => {
         if (prevTime > 0) {

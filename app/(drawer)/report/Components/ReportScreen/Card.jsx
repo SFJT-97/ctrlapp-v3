@@ -5,7 +5,7 @@ import { Link } from 'expo-router'
 import { Icon } from 'react-native-paper'
 
 // Custom modules
-import { showedName } from '../../../../../globals/functions/functions.js'
+import { showedName } from '../../../../../globals/functions/functions'
 
 const Card = ({ defaultValues }) => {
   const { me } = defaultValues

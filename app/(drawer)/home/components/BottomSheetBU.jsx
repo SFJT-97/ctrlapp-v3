@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
-import { View, FlatList, TouchableOpacity, StyleSheet, Text } from 'react-native'
+import { View, TouchableOpacity, StyleSheet, Text } from 'react-native'
 import { useQuery, gql } from '@apollo/client'
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet'
+import BottomSheet, { BottomSheetView, BottomSheetFlatList } from '@gorhom/bottom-sheet'
 import { Searchbar, useTheme, ActivityIndicator, Title } from 'react-native-paper'
 import { useRouter } from 'expo-router'
 
@@ -89,6 +89,51 @@ const BottomSheetBU = ({ visible, onClose }) => {
     [onClose]
   )
 
+  // Header component for the FlatList
+  const ListHeaderComponent = useCallback(() => (
+    <View style={styles.headerContainer}>
+      <Title style={[styles.title, { color: theme.colors.onSurface }]}>
+        Business Units
+      </Title>
+      <Searchbar
+        placeholder='Search by description or company'
+        onChangeText={onChangeSearch}
+        value={searchQuery}
+        style={[styles.searchbar, { backgroundColor: theme.colors.surface }]}
+        inputStyle={{ color: theme.colors.onSurface }}
+        iconColor={theme.colors.onSurface}
+        placeholderTextColor={theme.colors.onSurfaceVariant}
+      />
+    </View>
+  ), [theme, searchQuery, onChangeSearch])
+
+  // Empty component for FlatList
+  const ListEmptyComponent = useCallback(() => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size='large' color={theme.colors.primary} />
+        </View>
+      )
+    }
+    if (error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>
+            Error: {error.message.includes('Authentication') ? 'Please log in' : error.message}
+          </Text>
+        </View>
+      )
+    }
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={[styles.emptyText, { color: theme.colors.onSurface }]}>
+          No business units found
+        </Text>
+      </View>
+    )
+  }, [loading, error, theme])
+
   return (
     <BottomSheet
       ref={bottomSheetRef}
@@ -99,60 +144,24 @@ const BottomSheetBU = ({ visible, onClose }) => {
       backgroundStyle={{ backgroundColor: theme.colors.background }}
       handleIndicatorStyle={{ backgroundColor: theme.colors.onSurface }}
     >
-      <BottomSheetView style={styles.contentContainer}>
-        <Title style={[styles.title, { color: theme.colors.onSurface }]}>
-          Business Units
-        </Title>
-        <Searchbar
-          placeholder='Search by description or company'
-          onChangeText={onChangeSearch}
-          value={searchQuery}
-          style={[styles.searchbar, { backgroundColor: theme.colors.surface }]}
-          inputStyle={{ color: theme.colors.onSurface }}
-          iconColor={theme.colors.onSurface}
-          placeholderTextColor={theme.colors.onSurfaceVariant}
-        />
-        {loading
-          ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size='large' color={theme.colors.primary} />
-            </View>
-            )
-          : error
-            ? (
-              <View style={styles.errorContainer}>
-                <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                  Error: {error.message.includes('Authentication') ? 'Please log in' : error.message}
-                </Text>
-              </View>
-              )
-            : filteredBusinessUnits.length === 0
-              ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={[styles.emptyText, { color: theme.colors.onSurface }]}>
-                    No business units found
-                  </Text>
-                </View>
-                )
-              : (
-                <FlatList
-                  data={filteredBusinessUnits}
-                  renderItem={renderItem}
-                  keyExtractor={(item) => item.idCompanyBusinessUnit}
-                  contentContainerStyle={styles.listContainer}
-                  keyboardShouldPersistTaps='handled'
-                />
-                )}
-      </BottomSheetView>
+      <BottomSheetFlatList
+        data={filteredBusinessUnits}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.idCompanyBusinessUnit}
+        ListHeaderComponent={ListHeaderComponent}
+        ListEmptyComponent={ListEmptyComponent}
+        contentContainerStyle={styles.listContainer}
+        keyboardShouldPersistTaps='handled'
+      />
     </BottomSheet>
   )
 }
 
 const styles = StyleSheet.create({
-  contentContainer: {
-    flex: 1,
+  headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: 8
+    paddingTop: 8,
+    paddingBottom: 8
   },
   title: {
     fontSize: 20,
@@ -204,6 +213,7 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   listContainer: {
+    paddingHorizontal: 16,
     paddingBottom: 16
   }
 })

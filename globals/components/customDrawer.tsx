@@ -1,5 +1,4 @@
-import { useState, useEffect, useContext } from 'react'
-import { useMe } from '../../context/hooks/userQH'
+import React, { useState, useEffect, useContext, useCallback } from 'react'
 import { View } from 'react-native'
 import { Link } from 'expo-router'
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer'
@@ -11,7 +10,9 @@ import { gql, useMutation } from '@apollo/client'
 import { ThemeContext } from '../styles/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { DataContext } from '../../context/DataContext'
-import { API_URL } from '../variables/globalVariables'
+import { getImageUrl } from '../functions/imageUtils'
+import { useMe } from '../../context/hooks/userQH'
+import { User } from '../../types'
 
 // GraphQL mutation to update user configuration
 const editUserConfigurationM = gql`
@@ -22,80 +23,125 @@ const editUserConfigurationM = gql`
     }
   }
 `
-// La mutación que obtiene la key de AWS para la imágen indicada.
+
 const getSignedUrlFromCacheQ = gql`
   mutation GetSignedUrlFromCache($idSiMMediaURL: ID!) {
-  getSignedUrlFromCache(idSiMMediaURL: $idSiMMediaURL) {
-    signedUrl
+    getSignedUrlFromCache(idSiMMediaURL: $idSiMMediaURL) {
+      signedUrl
+    }
   }
-}
 `
 
-const CustomDrawer = (props) => {
-  const theme = useTheme()
-  const { me } = useMe()
-  const myConfigData = useMyConfig()
-  const [load, setLoad] = useState(false)
-  const [updateUserConfig] = useMutation(editUserConfigurationM)
-  const [getImageProfile] = useMutation(getSignedUrlFromCacheQ)
-  const { toogleTheme } = useContext(ThemeContext)
-  const { i18n } = useTranslation()
-  const { data, setData } = useContext(DataContext)
-  const [meData, setMeData] = useState(null)
+interface CustomDrawerProps {
+  [key: string]: unknown
+}
 
-  delete data?.password
+const CustomDrawer: React.FC<CustomDrawerProps> = (props) => {
+  const theme = useTheme()
+  const { me, loading: meLoading } = useMe()
+  const { config: myConfigData, loading: configLoading } = useMyConfig()
+  const [load, setLoad] = useState<boolean>(false)
+  const [updateUserConfig] = useMutation(editUserConfigurationM)
+  const [getImageProfile] = useMutation<{
+    getSignedUrlFromCache: { signedUrl: string }
+  }>(getSignedUrlFromCacheQ)
+  
+  const themeContext = useContext(ThemeContext)
+  if (!themeContext) {
+    throw new Error('CustomDrawer must be used within ThemeProviderCustom')
+  }
+  
+  const { toggleTheme } = themeContext // FIXED: Use toggleTheme instead of toogleTheme
+  const { i18n } = useTranslation()
+  
+  const dataContext = useContext(DataContext)
+  if (!dataContext) {
+    throw new Error('CustomDrawer must be used within DataProvider')
+  }
+  
+  const { data, setData } = dataContext
+  const [meData, setMeData] = useState<User | null>(null)
 
   // Ensure user data is loaded before rendering profile
   useEffect(() => {
-    if (me && me !== 'ApolloError' && me !== 'Loading...') {
+    if (!meLoading && me) {
       setLoad(true)
     }
-  }, [me])
+  }, [me, meLoading])
+
   useEffect(() => {
-    if (!me) return
-    const fetchImg = async () => {
-      let tempImg
+    if (meLoading || !me) return
+
+    const fetchImg = async (): Promise<void> => {
+      let tempImg: string
+
       if (me?.userProfileImage?.toString().includes('amazonaws')) {
-        const file = me?.userProfileImage.split('/').pop()
-        const fetchedImgProf = await getImageProfile({ variables: { idSiMMediaURL: file } })
-        if (fetchedImgProf && fetchedImgProf !== 'ApolloError' && fetchedImgProf !== 'Loading...') {
-          tempImg = fetchedImgProf?.data?.getSignedUrlFromCache?.signedUrl
+        const file = me.userProfileImage.split('/').pop()
+        if (!file) {
+          tempImg = getImageUrl(me.userProfileImage)
+          setMeData({ ...me, userProfileImage: tempImg })
+          return
+        }
+
+        try {
+          const fetchedImgProf = await getImageProfile({
+            variables: { idSiMMediaURL: file }
+          })
+
+          if (fetchedImgProf?.data?.getSignedUrlFromCache?.signedUrl) {
+            tempImg = fetchedImgProf.data.getSignedUrlFromCache.signedUrl
+          } else {
+            tempImg = getImageUrl(me.userProfileImage)
+          }
+        } catch (error) {
+          console.error('Error fetching image:', error)
+          tempImg = getImageUrl(me.userProfileImage)
         }
       } else {
-        tempImg = API_URL + me?.userProfileImage.toString().slice(me?.userProfileImage.indexOf('uploads'))
+        tempImg = getImageUrl(me.userProfileImage)
       }
-      setMeData({
-        ...me,
-        userProfileImage: tempImg
-      })
+
+      setMeData({ ...me, userProfileImage: tempImg })
     }
+
     fetchImg()
-  }, [me])
+  }, [me, meLoading, getImageProfile])
 
   // Handle theme toggle
-  const handleThemeToggle = async () => {
-    if (!myConfigData || !myConfigData?.idUserConfiguration) {
+  const handleThemeToggle = useCallback(async (): Promise<void> => {
+    if (configLoading || !myConfigData?.idUserConfiguration) {
       console.error('User configuration not loaded')
       return
     }
-    const newTheme = myConfigData?.theme === 'light' ? 'dark' : 'light'
+
+    const newTheme = myConfigData.theme === 'light' ? 'dark' : 'light'
     try {
       await updateUserConfig({
         variables: {
-          idUserConfiguration: myConfigData?.idUserConfiguration,
+          idUserConfiguration: myConfigData.idUserConfiguration,
           theme: newTheme
         }
       })
-      toogleTheme()
+      await toggleTheme()
     } catch (error) {
       console.error('Failed to update theme:', error)
     }
-  }
+  }, [myConfigData, configLoading, updateUserConfig, toggleTheme])
+
+  const handleLogout = useCallback((): void => {
+    // FIXED: Use functional update
+    setData((prev) => ({
+      ...prev,
+      loged: false
+    }))
+    client.stop()
+    client.resetStore()
+  }, [setData])
 
   return (
     <View style={{ flex: 1 }}>
       <DrawerContentScrollView {...props}>
-        {load && <DrawerProfile userData={meData} />}
+        {load && meData && <DrawerProfile userData={meData} />}
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
       <View style={{ paddingBottom: 20, alignItems: 'center' }}>
@@ -125,11 +171,7 @@ const CustomDrawer = (props) => {
             iconColor={theme.colors.primary}
           />
           <Link
-            onPress={() => {
-              setData({ ...data, loged: false })
-              client.stop()
-              client.resetStore()
-            }}
+            onPress={handleLogout}
             href='/(auth)/login'
           >
             <Button
@@ -148,3 +190,4 @@ const CustomDrawer = (props) => {
 }
 
 export default CustomDrawer
+

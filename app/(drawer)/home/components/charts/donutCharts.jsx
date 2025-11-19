@@ -4,11 +4,12 @@
 
 // Builtin modules
 import { gql, useQuery } from '@apollo/client'
-import { useState, useEffect, useRef } from 'react'
-import { View, Dimensions, TouchableOpacity, Animated } from 'react-native'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { View, Dimensions, TouchableOpacity, Animated, AppState, AppStateStatus } from 'react-native'
 import { useTheme, Text, Button } from 'react-native-paper'
 import { PieChart } from 'react-native-gifted-charts'
 import { useTranslation } from 'react-i18next'
+import { useIsFocused } from '@react-navigation/native'
 
 // Custom modules
 import { useRouter } from 'expo-router'
@@ -25,12 +26,29 @@ const aCQ = gql`
 
 export default function DonutCharts () {
   const { t, i18n } = useTranslation('donutCharts')
+  const isFocused = useIsFocused()
+  const [appState, setAppState] = useState(() => {
+    try {
+      return AppState.currentState || 'active'
+    } catch {
+      return 'active'
+    }
+  })
+
+  // FIXED: Smart polling - only when screen is focused and app is active
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', setAppState)
+    return () => subscription?.remove()
+  }, [])
+
+  const shouldPoll = isFocused && appState === 'active'
 
   /* ============ useQueries ============ */
   const aCData = useQuery(aCQ, {
     variables: { args: { type: null, ticketClosed: false } },
     fetchPolicy: 'cache-and-network',
-    pollInterval: 5000
+    pollInterval: shouldPoll ? 30000 : 0, // FIXED: 30s instead of 5s, only when active
+    notifyOnNetworkStatusChange: false // FIXED: Prevent loading state changes on poll
   })
 
   /* ============ useStates for charts ============ */
@@ -47,17 +65,18 @@ export default function DonutCharts () {
   const fadeAnim = useRef(new Animated.Value(0.3)).current
 
   /* ============ Chart Color & Theme ============ */
-  const chartColors = {
+  // FIXED: Memoize chart colors to prevent unnecessary re-renders
+  const chartColors = useMemo(() => ({
     colors: {
       colorOne: theme.colors.primaryContainer,
       colorTwo: theme.colors.secondaryContainer
     }
-  }
+  }), [theme.colors.primaryContainer, theme.colors.secondaryContainer])
 
-  const textColorMap = {
+  const textColorMap = useMemo(() => ({
     [theme.colors.primaryContainer]: theme.colors.onPrimaryContainer,
     [theme.colors.secondaryContainer]: theme.colors.onSecondaryContainer
-  }
+  }), [theme.colors.primaryContainer, theme.colors.onPrimaryContainer, theme.colors.secondaryContainer, theme.colors.onSecondaryContainer])
 
   const width = Dimensions.get('window').width
 
@@ -70,29 +89,44 @@ export default function DonutCharts () {
   }
 
   function linkedData (data, chartColors, mode) {
-    let cc = 0
-    let acum = 0
-    data.forEach((el) => {
-      acum += el.qtty
-    })
-    const result = data.map((el) => {
-      cc++
-      const color = getColor(cc, chartColors)
-      const text =
-        mode === 'numbers'
-          ? numbToEng(el.qtty, 0)
-          : `${(el.qtty / acum * 100).toFixed(1)}%`
-      return {
-        value: el.qtty,
-        color,
-        field: el.type,
-        translatedField: t(typeToTranslationKey[el.type] || el.type.toLowerCase()), // Pre-translate
-        text,
-        textColor: textColorMap[color] || theme.colors.onSurface
+    try {
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        return { result: [], total: 0 }
       }
-    })
-    setTotal(acum)
-    return result
+      if (!chartColors || typeof chartColors !== 'object') {
+        return { result: [], total: 0 }
+      }
+      let cc = 0
+      let acum = 0
+      data.forEach((el) => {
+        if (el && typeof el.qtty === 'number') {
+          acum += el.qtty
+        }
+      })
+      const result = data.map((el) => {
+        if (!el || typeof el.qtty !== 'number') {
+          return null
+        }
+        cc++
+        const color = getColor(cc, chartColors)
+        const text =
+          mode === 'numbers'
+            ? numbToEng(el.qtty, 0)
+            : `${(el.qtty / acum * 100).toFixed(1)}%`
+        return {
+          value: el.qtty,
+          color,
+          field: el.type || '',
+          translatedField: t(typeToTranslationKey[el.type] || el.type?.toLowerCase() || ''), // Pre-translate
+          text,
+          textColor: (textColorMap && textColorMap[color]) || theme.colors.onSurface
+        }
+      }).filter(Boolean) // Remove any null entries
+      return { result, total: acum }
+    } catch (error) {
+      console.error('Error in linkedData:', error)
+      return { result: [], total: 0 }
+    }
   }
 
   /* ============ Skeleton Chart Component ============ */
@@ -213,24 +247,31 @@ export default function DonutCharts () {
     )
 
     function getLegends (data) {
+      if (!Array.isArray(data) || data.length === 0) {
+        return null
+      }
       const tempData = data.filter((_, index) => index < 6)
       return tempData
-        .map((el) => (
-          <TouchableOpacity
-            key={el.field}
-            onPress={() => {
-              const temp = {
-                ...el,
-                prevQuery: 'type',
-                description: 'action/condition'
-              }
-              setDataTo(temp)
-              setGoNextChart(true)
-            }}
-          >
-            {renderLegend(el.field, el.translatedField, el.color)}
-          </TouchableOpacity>
-        ))
+        .map((el) => {
+          if (!el || !el.field) return null
+          return (
+            <TouchableOpacity
+              key={el.field}
+              onPress={() => {
+                const temp = {
+                  ...el,
+                  prevQuery: 'type',
+                  description: 'action/condition'
+                }
+                setDataTo(temp)
+                setGoNextChart(true)
+              }}
+            >
+              {renderLegend(el.field, el.translatedField, el.color)}
+            </TouchableOpacity>
+          )
+        })
+        .filter(Boolean)
         .reverse()
     }
 
@@ -257,7 +298,7 @@ export default function DonutCharts () {
             {loaded && getLegends(data)}
           </View>
         </View>
-        {loaded
+        {loaded && Array.isArray(data) && data.length > 0
           ? (
             <View>
               <PieChart
@@ -268,13 +309,15 @@ export default function DonutCharts () {
                 showText
                 textSize={20}
                 onPress={(item) => {
-                  const temp = {
-                    ...item,
-                    prevQuery: 'type',
-                    description: 'action/condition'
+                  if (item && typeof item === 'object') {
+                    const temp = {
+                      ...item,
+                      prevQuery: 'type',
+                      description: 'action/condition'
+                    }
+                    setDataTo(temp)
+                    setGoNextChart(true)
                   }
-                  setDataTo(temp)
-                  setGoNextChart(true)
                 }}
               />
             </View>
@@ -303,27 +346,70 @@ export default function DonutCharts () {
     )
   }
 
+  // FIXED: Memoize expensive calculations
   useEffect(() => {
-    if (
-      aCData?.data?.groupMyCompanyTicketsNew &&
-      !aCData.loading &&
-      !aCData.error
-    ) {
-      const res = linkedData(
-        aCData.data.groupMyCompanyTicketsNew,
-        chartColors,
-        displayMode
-      )
-      setData(res)
-      setLoaded(true)
+    // Don't run if dependencies aren't ready
+    if (!chartColors || !textColorMap || !theme) {
+      return
+    }
+
+    // Safety check: ensure aCData exists and is an object
+    if (!aCData || typeof aCData !== 'object') {
+      setData([])
+      setTotal(0)
+      setLoaded(false)
+      return
+    }
+
+    try {
+      const ticketsData = aCData?.data?.groupMyCompanyTicketsNew
+      
+      if (
+        ticketsData &&
+        !aCData.loading &&
+        !aCData.error &&
+        Array.isArray(ticketsData) &&
+        ticketsData.length > 0
+      ) {
+        const linkedResult = linkedData(
+          ticketsData,
+          chartColors,
+          displayMode
+        )
+        // Ensure we got a valid result object
+        if (linkedResult && typeof linkedResult === 'object' && linkedResult !== null && 'result' in linkedResult && 'total' in linkedResult) {
+          const resultArray = Array.isArray(linkedResult.result) ? linkedResult.result : []
+          const resultTotal = typeof linkedResult.total === 'number' ? linkedResult.total : 0
+          setData(resultArray)
+          setTotal(resultTotal)
+          setLoaded(true)
+        } else {
+          // Fallback if linkedData returns unexpected structure
+          setData([])
+          setTotal(0)
+          setLoaded(false)
+        }
+      } else {
+        setData([])
+        setTotal(0)
+        setLoaded(false)
+      }
+    } catch (error) {
+      console.error('Error processing chart data:', error)
+      setData([])
+      setTotal(0)
+      setLoaded(false)
     }
   }, [
-    aCData.loading,
-    aCData.error,
+    aCData,
+    aCData?.loading,
+    aCData?.error,
     aCData?.data?.groupMyCompanyTicketsNew,
-    theme,
+    chartColors,
     displayMode,
-    i18n.language // Re-run on language change
+    i18n.language, // Re-run on language change
+    textColorMap,
+    theme
   ])
 
   /* console.log('Types:', aCData?.data?.groupMyCompanyTicketsNew?.map((el) => el.type)) */

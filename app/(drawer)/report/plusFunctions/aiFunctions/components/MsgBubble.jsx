@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native'
 import { Avatar } from 'react-native-paper'
-import { msgbubble } from '../eMarayChat/styles.js'
-import { getFormatedTime } from '../../../../../../globals/functions/functions.js'
+import { msgbubble } from '../eMarayChat/styles'
+import { getFormatedTime } from '../../../../../../globals/functions/functions'
 
 const MsgBubble = ({ message = '', messageTime = '', isSender = true, userToProfileImage, imageProfile, bigImage = false }) => {
   let bothImages = false

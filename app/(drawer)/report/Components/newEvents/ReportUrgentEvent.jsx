@@ -11,9 +11,8 @@ import CompanySectorDropdown from './CompanySectorDropdown'
 import EventDescription from './EventDescription'
 import EventSubtype from './EventSubtype'
 import UrgentRiskQualification from './UrgentRiskQualification'
-import ImageVideo from './ImageVideo'
+import MediaGrid from './MediaGrid'
 import { useRouter } from 'expo-router'
-import CameraComponent from './CameraComponent'
 
 // Imports for save locally files and mutations when there are no connection available
 import * as FileSystem from 'expo-file-system'
@@ -92,11 +91,6 @@ export default function ReportEvent (args) {
   const [load, setLoad] = useState(false)
 
   const theme = useTheme()
-  // Estado para saber si se activó la camara o no
-  const [isCameraActive, setIsCameraActive] = useState(false)
-
-  // Estado para saber desde la cámara nueva, cual SetImage usar
-  const [cameraSelected, setCameraSelected] = useState(1)
 
   // en handleSubmit llenaremos los datos que se le pasarán a la colección de MongoDB
   const handleSubmit = async () => {
@@ -167,26 +161,6 @@ export default function ReportEvent (args) {
     setRiskQualification('Extremely Dangerous')
   }, [])
 
-  let seterSelected = null
-  let modeSelected = 'picture'
-  if (isCameraActive) {
-    switch (cameraSelected) {
-      case 1:
-        seterSelected = setImage1
-        break
-      case 2:
-        seterSelected = setImage2
-        break
-      case 3:
-        seterSelected = setImage3
-        break
-      case 4:
-        modeSelected = 'video'
-        seterSelected = SetVideo
-        break
-    }
-  }
-
   return (
     <ScrollView nestedScrollEnabled>
       <View style={{ rowGap: 30, marginHorizontal: 15, marginTop: 25, marginBottom: 60 }}>
@@ -204,13 +178,17 @@ export default function ReportEvent (args) {
 
         <EventSubtype allTicketNewSubType={allTicketNewSubType} setEventSubType={setEventSubType} />
 
-        {isCameraActive
-          ? (
-            <CameraComponent mode={modeSelected} setImageVideo={seterSelected} setIsCameraActive={setIsCameraActive} isCameraActive={isCameraActive} />
-            )
-          : (
-            <ImageVideo setImage1={setImage1} setImage2={setImage2} setImage3={setImage3} setVideo={SetVideo} image1={image1} image2={image2} image3={image3} video={video} setIsCameraActive={setIsCameraActive} isCameraActive={isCameraActive} setCameraSelected={setCameraSelected} />
-            )}
+        <MediaGrid
+          image1={image1}
+          setImage1={setImage1}
+          image2={image2}
+          setImage2={setImage2}
+          image3={image3}
+          setImage3={setImage3}
+          video={video}
+          setVideo={SetVideo}
+          netState={undefined}
+        />
         <EventDescription setDescription={setDescription} />
 
         <Button compact style={{ padding: 5, marginTop: 30, backgroundColor: theme.colors.error }} mode='contained' onPress={handleSubmit}>

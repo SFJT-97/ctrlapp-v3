@@ -1,9 +1,10 @@
 // ==> 2024-10-02
 // Builtin modules
 import { useState, useEffect } from 'react'
-import { View } from 'react-native'
+import { View, AppState, AppStateStatus } from 'react-native'
 import { useTheme, IconButton, Chip } from 'react-native-paper'
 import { useLazyQuery, gql, useMutation, useQuery } from '@apollo/client'
+import { useIsFocused } from '@react-navigation/native'
 
 // Custom modules
 import { useMe } from '../../../../../context/hooks/userQH'
@@ -60,12 +61,35 @@ query Query($idTicketNew: ID!) {
 
 const Reaction = ({ param }) => {
   const parParam = param
+  const isFocused = useIsFocused()
+  const [appState, setAppState] = useState(() => {
+    try {
+      return AppState.currentState || 'active'
+    } catch {
+      return 'active'
+    }
+  })
+
+  // FIXED: Smart polling - only when screen is focused and app is active
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', setAppState)
+    return () => subscription?.remove()
+  }, [])
+
+  const shouldPoll = isFocused && appState === 'active'
+
   const [findTicketNewLike] = useLazyQuery(findTicketNewLikeQ, { fetchPolicy: 'network-only' })
   const [addNewTicketNewLike] = useMutation(addNewTicketNewLikeM, { fetchPolicy: 'network-only' })
   const [editTicketNewLike] = useMutation(editTicketNewLikeM, { fetchPolicy: 'network-only' })
   const { me } = useMe()
   const [totalLikesAndDislikes, setTotalLikesAndDislikes] = useState(0)
-  const countTotalTicketsNewLikes = useQuery(countTicketsNewLikesQ, { variables: { idTicketNew: param?.idTicketNew }, fetchPolicy: 'network-only', pollInterval: 1000 })
+  // FIXED: Change from 1000ms to 10000ms (10 seconds) with smart polling
+  const countTotalTicketsNewLikes = useQuery(countTicketsNewLikesQ, { 
+    variables: { idTicketNew: param?.idTicketNew }, 
+    fetchPolicy: 'cache-and-network', // FIXED: Use cache
+    pollInterval: shouldPoll ? 10000 : 0, // FIXED: 10s instead of 1s
+    notifyOnNetworkStatusChange: false
+  })
 
   const theme = useTheme()
   const [pressed, setPressed] = useState({

@@ -789,22 +789,53 @@
 
 // version 8
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { View, FlatList, Dimensions } from 'react-native'
+import { View, FlatList, Dimensions, RefreshControl } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
-import { Text, TextInput } from 'react-native-paper'
+import { Text, Searchbar, useTheme } from 'react-native-paper'
 import { useDebounce } from 'use-debounce'
+import { useApolloClient } from '@apollo/client'
 
-import CardComponent from './Components/CardComponent.jsx'
-import { useAsyncStorage } from '../../../../context/hooks/ticketNewQH.js'
-import CustomActivityIndicator from '../../../../globals/components/CustomActivityIndicator.js'
+import EventCard from '../../home/components/EventCard'
+import { useAsyncStorage } from '../../../../context/hooks/ticketNewQH'
+import CustomActivityIndicator from '../../../../globals/components/CustomActivityIndicator'
 // import CardXComponent from './Components/CardXComponent.jsx'
 // import { EMARAY_MOVILE_GIF, EMARAY_CAMERA_JPG } from '../../../../globals/variables/globalVariables.js'
 
 const WIDTH = Dimensions.get('window').width
 const ITEMS_PER_PAGE = 5
 
+// Convert risk qualification and solution type to RiskDot/SolutionDot format
+function switchRisk (risk) {
+  const mapping = {
+    Catastrophic: 0,
+    'Extremely Dangerous': 0,
+    'Very Dangerous': 0,
+    Dangerous: 1,
+    'Very Serious': 1,
+    Serious: 2,
+    Warning: 2,
+    'Low warning': 3,
+    Inconsequential: 3,
+    'Secure Event': 3
+  }
+  return mapping[risk] ?? null
+}
+
+function switchSolution (solution) {
+  const mapping = {
+    Resolved: 0,
+    'Pending action': 1,
+    'Partial action': 2,
+    'Immediate action': 3
+  }
+  return mapping[solution] ?? null
+}
+
 const SearchEvent = () => {
   const router = useRouter()
+  const theme = useTheme()
+  const client = useApolloClient()
+  const [refreshing, setRefreshing] = useState(false)
 
   // Acceso seguro a async storage para tickets
   const { value: ticketsRaw = [], loading: loadingTickets, error: ticketsError } = useAsyncStorage('CTRLA_TICKETS_DATA')
@@ -812,8 +843,6 @@ const SearchEvent = () => {
   const { value: generalDataRaw = { allUsersFromMyCompany: [] }, loading: loadingGeneralData, error: generalError } = useAsyncStorage('CTRLA_GENERAL_DATA')
 
   const [filterEvents, setFilterEvents] = useState([])
-  const [displayedEvents, setDisplayedEvents] = useState([])
-  const [page, setPage] = useState(1)
   const [allUsers, setAllUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm] = useDebounce(searchTerm, 200)
@@ -843,16 +872,10 @@ const SearchEvent = () => {
     }
   }, [generalDataRaw, loadingGeneralData])
 
-  useEffect(() => {
-    const end = page * ITEMS_PER_PAGE
-    setDisplayedEvents(filterEvents?.slice(0, end))
-  }, [page, filterEvents])
-
   const handleFilter = useCallback(
     (term) => {
       if (!term || !Array.isArray(allTicketsOpen)) {
         setFilterEvents(allTicketsOpen)
-        setPage(1)
         return
       }
 
@@ -876,7 +899,6 @@ const SearchEvent = () => {
       const sorted = result
         .sort((a, b) => new Date(Number(b?.dateTimeEvent)) - new Date(Number(a?.dateTimeEvent)))
       setFilterEvents(sorted)
-      setPage(1)
     }, [allTicketsOpen, allUsers]
   )
 
@@ -897,25 +919,41 @@ const SearchEvent = () => {
     [router]
   )
 
-  const loadMoreItems = () => {
-    if (displayedEvents?.length < filterEvents?.length) {
-      setPage((prev) => prev + 1)
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await client.refetchQueries({ include: 'active' })
+    } catch (error) {
+      console.error('Error refreshing search:', error)
+    } finally {
+      setRefreshing(false)
     }
-  }
+  }, [client])
 
-  const showError = ticketsError || generalError || (!Array.isArray(ticketsRaw) && !loadingTickets)
+  // Transform item to EventCard format
+  const transformItemForEventCard = useCallback((item) => {
+    return {
+      result: item,
+      risk: {
+        RiskDot: switchRisk(item?.riskQualification),
+        SolutionDot: switchSolution(item?.solutionType)
+      }
+    }
+  }, [])
+
+  // Only show error if there's an actual error AND loading is complete
+  const showError = (ticketsError || generalError) && !loadingTickets && !loadingGeneralData
 
   return (
-    <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: 'Search Screen' }} />
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <Stack.Screen options={{ title: 'Search Events' }} />
 
-      <TextInput
-        style={{ margin: 10, width: WIDTH - 50, alignSelf: 'center' }}
-        mode='outlined'
-        placeholder='Search...'
-        left={<TextInput.Icon icon='magnify' />}
+      <Searchbar
+        placeholder='Search events...'
         onChangeText={setSearchTerm}
         value={searchTerm}
+        style={{ margin: 8, elevation: 2 }}
+        inputStyle={{ fontSize: 14 }}
       />
 
       {loadingTickets || loadingGeneralData
@@ -924,31 +962,48 @@ const SearchEvent = () => {
           )
         : showError
           ? (
-            <Text style={{ color: 'red', textAlign: 'center', marginTop: 20 }}>
-              Ocurrió un error al cargar los datos...
-            </Text>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+              <Text style={{ color: theme.colors.error, textAlign: 'center' }}>
+                Ocurrió un error al cargar los datos...
+              </Text>
+            </View>
             )
           : (
             <>
-              <Text style={{ padding: 5 }}>{filterEvents?.length} open tickets found...</Text>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 14 }}>
+                  {filterEvents?.length || 0} {filterEvents?.length === 1 ? 'event' : 'events'} found
+                </Text>
+              </View>
               <FlatList
-                data={displayedEvents}
+                data={filterEvents}
                 keyExtractor={(item, index) => item?.idTicketNew?.toString() || `fallback-${index}`}
                 renderItem={({ item }) => (
-                  <>
-                    <CardComponent item={item} onPress={() => handlePress(item)} />
-                    {/* <CardXComponent
-                      media={[
-                        { type: 'image', uri: EMARAY_MOVILE_GIF },
-                        { type: 'image', uri: EMARAY_MOVILE_GIF },
-                        { type: 'image', uri: EMARAY_CAMERA_JPG },
-                        { type: 'video', uri: 'https://www.w3schools.com/html/mov_bbb.mp4' }
-                      ]}
-                    /> */}
-                  </>
+                  <EventCard
+                    item={transformItemForEventCard(item)}
+                    onPress={() => handlePress(item)}
+                  />
                 )}
-                onEndReached={loadMoreItems}
-                onEndReachedThreshold={0.2}
+                removeClippedSubviews={true}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                windowSize={10}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={[theme.colors.primary]}
+                    tintColor={theme.colors.primary}
+                  />
+                }
+                contentContainerStyle={{ paddingBottom: 16 }}
+                ListEmptyComponent={
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+                    <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', fontSize: 16 }}>
+                      {searchTerm ? 'No events found matching your search' : 'No events available'}
+                    </Text>
+                  </View>
+                }
               />
             </>
             )}

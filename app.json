@@ -89,7 +89,8 @@
             "minSdkVersion": 23
           }
         }
-      ]
+      ],
+      "./plugins/withScreenshotPrevention"
     ],
     "extra": {
       "router": {

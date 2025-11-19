@@ -12,7 +12,7 @@ import CompanySectorDropdown from './CompanySectorDropdown'
 import EventDescription from './EventDescription'
 import EventSubtype from './EventSubtype'
 import UrgentRiskQualification from './UrgentRiskQualification'
-import ImageVideo from './ImageVideo'
+import MediaGrid from './MediaGrid'
 import uploadFile from '../../../../../globals/uploadFile'
 import { useRouter } from 'expo-router'
 
@@ -320,15 +320,15 @@ export default function ReportUrgentEventIA (args) {
           />
         </View>
 
-        <ImageVideo
-          setImage1={setImage1}
-          setImage2={setImage2}
-          setImage3={setImage3}
-          setVideo={SetVideo}
+        <MediaGrid
           image1={image1}
+          setImage1={setImage1}
           image2={image2}
+          setImage2={setImage2}
           image3={image3}
+          setImage3={setImage3}
           video={video}
+          setVideo={SetVideo}
           netState={netState}
         />
 

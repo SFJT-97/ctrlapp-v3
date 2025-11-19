@@ -1,16 +1,18 @@
 // ==> 2024-10-02 - REMOVED NAVIGATION BUTTONS
 // Builtin modules
 import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react'
-import { View, ImageBackground, TouchableOpacity } from 'react-native'
+import { View, ImageBackground, TouchableOpacity, AppState, AppStateStatus } from 'react-native'
 import { useTheme, Text, Card, Chip, Divider, ActivityIndicator } from 'react-native-paper'
 import { useMutation, gql, useQuery } from '@apollo/client'
 import { useTranslation } from 'react-i18next'
+import { useIsFocused } from '@react-navigation/native'
 import { useMe } from '../../../../context/hooks/userQH'
 import { DataContext } from '../../../../context/DataContext'
 import { getFormatedTime } from '../../../../globals/functions/functions'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet'
 import { useRouter } from 'expo-router'
+import EventCard from './EventCard'
 
 // Global variables
 import { API_URL } from '../../../../globals/variables/globalVariables'
@@ -212,90 +214,46 @@ const TicketCard = ({ item }) => {
     return <SkeletonCard />
   }
 
+  // Use the new EventCard component for modern social media-style design
   return (
-    <TouchableOpacity
+    <EventCard
+      item={item}
       onPress={async () => {
-        const nParams = item.result // Pass the entire item.result object
-        nParams && router.navigate({ pathname: '/(drawer)/home/[event]', params: nParams })
+        const nParams = item.result
+        if (nParams) {
+          router.navigate({ pathname: '/(drawer)/home/[event]', params: nParams })
+        }
       }}
-    >
-      <Card
-        style={{
-          borderRadius: 10,
-          margin: 5
-        }}
-      >
-        <Card.Title
-          title={`${item.result?.classification || 'N/A'} - ${item.result?.classificationDescription || 'N/A'}`}
-          titleStyle={{ fontWeight: 'bold', color: theme.colors.onBackground }}
-          subtitle={item.result?.companySectorDescription || 'N/A'}
-          subtitleStyle={{ color: theme.colors.onBackground }}
-          right={() => (
-            <Text variant='labelMedium' style={{ marginRight: 10, color: theme.colors.onBackground }}>
-              {formatDateTime(item.result?.dateTimeEvent)}
-            </Text>
-          )}
-        />
-        <Card.Content>
-          {renderImages()}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              marginVertical: 10,
-              columnGap: 5
-            }}
-          >
-            <Chip
-              elevated
-              compact
-              textStyle={{ color: 'black' }}
-              style={{
-                backgroundColor:
-                  item.result?.type === 'action'
-                    ? theme.colors.primaryContainer
-                    : theme.colors.secondaryContainer,
-                width: 'auto'
-              }}
-            >
-              {item.result?.type ? item.result.type.charAt(0).toUpperCase() + item.result.type.slice(1) : 'N/A'}
-            </Chip>
-            {item.risk.RiskDot !== null && (
-              <Chip
-                elevated
-                compact
-                textStyle={{ color: 'black' }}
-                style={{ backgroundColor: colors.risk[item.risk.RiskDot], width: 'auto' }}
-              >
-                {item.result?.riskQualification || 'N/A'}
-              </Chip>
-            )}
-            {item.risk.SolutionDot !== null && (
-              <Chip
-                elevated
-                compact
-                textStyle={{ color: 'black' }}
-                style={{ backgroundColor: colors.solution[item.risk.SolutionDot], width: 'auto' }}
-              >
-                {item.result?.solutionType || 'N/A'}
-              </Chip>
-            )}
-          </View>
-          <Divider bold style={{ marginVertical: 10 }} />
-          <Text style={{ marginBottom: 10, color: theme.colors.onBackground }} variant='bodyMedium'>
-            {item.result?.ticketCustomDescription?.slice(0, 50) || 'No description'}...
-          </Text>
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
+    />
   )
 }
 
 const HomeBottomSheetModal = ({ visible, setVisible, sectorEvent }) => {
   const { t } = useTranslation('banner')
+  const isFocused = useIsFocused()
+  const [appState, setAppState] = useState(() => {
+    try {
+      return AppState.currentState || 'active'
+    } catch {
+      return 'active'
+    }
+  })
+
+  // FIXED: Smart polling - only when screen is focused and app is active
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', setAppState)
+    return () => subscription?.remove()
+  }, [])
+
+  const shouldPoll = isFocused && appState === 'active'
+
   const [addNewNotification] = useMutation(newNotificationM)
-  const myLastNotification = useQuery(myLastNotificationQ, { fetchPolicy: 'network-only', pollInterval: 60 * 1000 })
+  // FIXED: Add smart polling and use cache
+  const myLastNotification = useQuery(myLastNotificationQ, { 
+    fetchPolicy: 'cache-and-network', // FIXED: Use cache
+    pollInterval: shouldPoll ? 60000 : 0, // Only poll when active
+    notifyOnNetworkStatusChange: false
+  })
   const [getSignedImageURL] = useMutation(getSignedUrlFromCacheQ)
   const [image, setImage] = useState(`${API_URL}uploads/ctrla-icon.png`)
   const theme = useTheme()
@@ -308,12 +266,16 @@ const HomeBottomSheetModal = ({ visible, setVisible, sectorEvent }) => {
   // Snap points for bottom sheet
   const snapPoints = useMemo(() => ['30%', '75%'], [])
 
+  // FIXED: Add null/undefined checks for sectorEvent
+  // Ensure sectorEvent is always an object to prevent "Cannot read property" errors
+  const safeSectorEvent = sectorEvent || {}
+
   // Map sectorEvent to TicketCard item structure
   const ticketItem = {
-    result: sectorEvent,
+    result: safeSectorEvent,
     risk: {
-      RiskDot: sectorEvent.riskQualification ? 0 : null,
-      SolutionDot: sectorEvent.solutionType ? 0 : null
+      RiskDot: safeSectorEvent?.riskQualification ? 0 : null,
+      SolutionDot: safeSectorEvent?.solutionType ? 0 : null
     }
   }
 
@@ -340,11 +302,11 @@ const HomeBottomSheetModal = ({ visible, setVisible, sectorEvent }) => {
       if (lastIdNotification.current?.idNotification !== myLastNotification?.data?.myLastNotification?.idNotification) {
         lastIdNotification.current = {
           idNotification: myLastNotification?.data?.myLastNotification?.idNotification,
-          idTicketNew: sectorEvent.idTicketNew
+          idTicketNew: safeSectorEvent?.idTicketNew
         }
       }
     }
-  }, [myLastNotification, myLastNotification.loading])
+  }, [myLastNotification, myLastNotification.loading, safeSectorEvent])
 
   useEffect(() => {
     async function fetchSignedImg (file) {
@@ -362,56 +324,69 @@ const HomeBottomSheetModal = ({ visible, setVisible, sectorEvent }) => {
         setImage(tempImg)
       }
     }
-    if (sectorEvent === '' || Object.keys(sectorEvent).length === 0) {
+    // FIXED: Use safeSectorEvent and add proper null checks
+    if (!safeSectorEvent || safeSectorEvent === '' || Object.keys(safeSectorEvent).length === 0) {
       setNoEventCondition(true)
     } else {
       setNoEventCondition(false)
-      if (sectorEvent.ticketImage1 !== '') {
-        tempImg = sectorEvent.ticketImage1.split('/').pop()
+      if (safeSectorEvent?.ticketImage1 && safeSectorEvent.ticketImage1 !== '') {
+        tempImg = safeSectorEvent.ticketImage1.split('/').pop()
       } else {
         tempImg = `${API_URL}uploads/ctrla-icon.png`
       }
     }
     fetchSignedImg(tempImg)
-  }, [sectorEvent, image])
+  }, [safeSectorEvent, image, getSignedImageURL])
 
   useEffect(() => {
     const checkAndSendNotification = async () => {
       const storedTicketId = await AsyncStorage.getItem('lastNotifiedTicket')
+      // FIXED: Add check for data.tokenDevice to prevent validation error
       if (
         !noEventCondition &&
-        sectorEvent?.idTicketNew &&
-        storedTicketId !== sectorEvent.idTicketNew &&
+        safeSectorEvent?.idTicketNew &&
+        storedTicketId !== safeSectorEvent.idTicketNew &&
         me &&
         me !== 'Loading...' &&
         me !== 'ApolloError' &&
         data &&
+        data.tokenDevice && // FIXED: Ensure tokenDevice exists
+        data.tokenDevice.trim() !== '' && // FIXED: Ensure tokenDevice is not empty
         image
       ) {
-        const temp = { ...me, password: '****' }
-        const tempVariables = {
-          ...temp,
-          notificationTitle: `${sectorEvent.classificationDescription} event...|${image}`,
-          notificationDescription: t('notificationDescription', {
-            sector: sectorEvent.companySectorDescription,
-            time: getFormatedTime(sectorEvent.dateTimeEvent, false, true, true),
-            risk: sectorEvent.riskQualification,
-            solution: sectorEvent.solutionType,
-            description: sectorEvent.ticketCustomDescription.slice(0, 300)
-          }),
-          dateStamp: sectorEvent.dateTimeEvent,
-          token: data.tokenDevice
-        }
+        try {
+          const temp = { ...me, password: '****' }
+          const tempVariables = {
+            ...temp,
+            notificationTitle: `${safeSectorEvent?.classificationDescription || 'Event'} event...|${image}`,
+            notificationDescription: t('notificationDescription', {
+              sector: safeSectorEvent?.companySectorDescription || 'N/A',
+              time: getFormatedTime(safeSectorEvent?.dateTimeEvent, false, true, true),
+              risk: safeSectorEvent?.riskQualification || 'N/A',
+              solution: safeSectorEvent?.solutionType || 'N/A',
+              description: safeSectorEvent?.ticketCustomDescription?.slice(0, 300) || 'No description'
+            }),
+            dateStamp: safeSectorEvent?.dateTimeEvent || new Date().toISOString(),
+            token: data.tokenDevice
+          }
 
-        await addNewNotification({ variables: tempVariables })
-        await AsyncStorage.setItem('lastNotifiedTicket', sectorEvent.idTicketNew)
+          await addNewNotification({ variables: tempVariables })
+          await AsyncStorage.setItem('lastNotifiedTicket', safeSectorEvent.idTicketNew)
+        } catch (error) {
+          console.error('Error sending notification:', error)
+          // Don't mark as sent if there was an error, so it can retry
+        }
       } else {
-        console.log('Notificación ya enviada')
+        if (!data?.tokenDevice || data.tokenDevice.trim() === '') {
+          console.log('Notification skipped: tokenDevice not available')
+        } else {
+          console.log('Notificación ya enviada')
+        }
       }
     }
 
     checkAndSendNotification()
-  }, [noEventCondition, lastIdNotification, image, me, data, sectorEvent?.idTicketNew, t])
+  }, [noEventCondition, lastIdNotification, image, me, data, safeSectorEvent?.idTicketNew, t, safeSectorEvent, addNewNotification])
 
   return (
     <BottomSheet
@@ -422,7 +397,7 @@ const HomeBottomSheetModal = ({ visible, setVisible, sectorEvent }) => {
       enablePanDownToClose
       backgroundStyle={{
         backgroundColor:
-          sectorEvent.classification === 'PEI' || sectorEvent.classification === 'ARI'
+          safeSectorEvent?.classification === 'PEI' || safeSectorEvent?.classification === 'ARI'
             ? theme.colors.errorContainer
             : theme.colors.surfaceVariant
       }}

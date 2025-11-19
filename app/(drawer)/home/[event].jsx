@@ -1,15 +1,16 @@
 // ==> 2024-10-02
 // Builtin modules
-import { useEffect, useState } from 'react'
-import { ScrollView, View } from 'react-native'
+import { useEffect, useState, useCallback } from 'react'
+import { ScrollView, View, RefreshControl } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
+import { Chip, useTheme, Text, Divider } from 'react-native-paper'
+import { useApolloClient } from '@apollo/client'
 
 // Custom modules
 import EventCarousel from './components/event/EventCarousel'
 import Chips from './components/event/chips'
 import Content from './components/event/content'
 import Reaction from './components/event/reactions'
-import { Chip, useTheme } from 'react-native-paper'
 import ShowComments from './components/event/ShowComments'
 
 import {
@@ -25,53 +26,132 @@ configureReanimatedLogger({
 const EventPage = () => {
   const [loaded, setLoaded] = useState(false)
   const [closed, setClosed] = useState('Open')
-  const [newState, setNewState] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const theme = useTheme()
+  const client = useApolloClient()
   const param = useLocalSearchParams()
 
   useEffect(() => {
     if (param !== undefined) {
       try {
         setLoaded(true)
-        setNewState(newState)
-        if (closed === 'Open') {
-          setClosed('Open')
-        } else {
-          setClosed('Closed')
+        // Determine ticket status from param if available
+        if (param.status) {
+          setClosed(param.status)
         }
       } catch (error) {
         console.log('error_________________', error)
       }
     }
-  }, [])
-  return (
-    <ScrollView>
+  }, [param])
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      // Refetch all active queries to refresh event data, comments, and reactions
+      await client.refetchQueries({
+        include: 'active'
+      })
+    } catch (error) {
+      console.error('Error refreshing event data:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [client])
+
+  if (!loaded) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: 'Event Details'
+          }}
+        />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: theme.colors.onSurfaceVariant }}>Loading event...</Text>
+        </View>
+      </>
+    )
+  }
+
+  return (
+    <>
       <Stack.Screen
         options={{
-          title: ('Event Details...')
+          title: param.classificationDescription || 'Event Details'
         }}
       />
-      {
-        loaded && (
-          <View style={{ rowGap: 20, alignSelf: 'center', alignItems: 'center', marginBottom: 50 }}>
+      <ScrollView
+        nestedScrollEnabled
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
+      >
+        <View style={{ backgroundColor: theme.colors.surface }}>
+          {/* Image Carousel */}
+          <View style={{ marginBottom: 16 }}>
             <EventCarousel param={param} />
-            <Chips param={param} />
-            <Content param={param} />
-            <View style={{ display: 'flex', justifyContent: 'space-around', rowGap: 4 }}>
-              <Reaction param={param} />
-              <Chip
-                textStyle={{ textAlign: 'center', fontWeight: 'bold' }}
-                style={{ backgroundColor: closed === 'Open' ? theme.colors.errorContainer : theme.colors.secondaryContainer }}
-              >
-                Ticket: {closed}
-              </Chip>
-            </View>
-            <ShowComments idTicketNew={param.idTicketNew} />
           </View>
-        )
-      }
-    </ScrollView>
+
+          {/* Classification and Status Chips */}
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              paddingHorizontal: 16,
+              marginBottom: 16,
+              gap: 8
+            }}
+          >
+            <Chips param={param} />
+            <Chip
+              textStyle={{ textAlign: 'center', fontWeight: 'bold', fontSize: 12 }}
+              style={{
+                backgroundColor:
+                  closed === 'Open'
+                    ? theme.colors.errorContainer
+                    : theme.colors.secondaryContainer,
+                height: 32
+              }}
+            >
+              Status: {closed}
+            </Chip>
+          </View>
+
+          <Divider style={{ marginVertical: 8 }} />
+
+          {/* Event Content */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+            <Content param={param} />
+          </View>
+
+          <Divider style={{ marginVertical: 8 }} />
+
+          {/* Reactions Section */}
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              marginBottom: 16
+            }}
+          >
+            <Reaction param={param} />
+          </View>
+
+          <Divider style={{ marginVertical: 8 }} />
+
+          {/* Comments Section */}
+          <ShowComments idTicketNew={param.idTicketNew} />
+        </View>
+      </ScrollView>
+    </>
   )
 }
 
