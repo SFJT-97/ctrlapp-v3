@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { gql, useMutation } from '@apollo/client'
 import { Dimensions, View, StyleSheet, Modal, Pressable, ImageBackground, BackHandler, Platform } from 'react-native'
 import Carousel from 'react-native-reanimated-carousel'
-import { useTheme, ProgressBar, Text } from 'react-native-paper'
+import { useTheme, Text } from 'react-native-paper'
 import { Video, ResizeMode } from 'expo-av'
 import CustomActivityIndicator from '../../../../../globals/components/CustomActivityIndicator'
 import ZoomableImage from './ZoomableImage'
@@ -52,29 +52,27 @@ const EventCarousel = ({ param, rotation }) => {
     setCurrentIndex(tempItem)
   }, [gallery.length])
 
-  const calculateProgress = useCallback(() => {
-    if (countMMedia === 4) {
-      switch (currentIndex) {
-        case 0: return 0.25
-        case 1: return 0.5
-        case 2: return 0.75
-        case 3: return 1
-      }
-    } else if (countMMedia === 3) {
-      switch (currentIndex) {
-        case 0: return 0.33
-        case 1: return 0.66
-        case 2: return 1
-      }
-    } else if (countMMedia === 2) {
-      switch (currentIndex) {
-        case 0: return 0.5
-        case 1: return 1
-      }
-    } else {
-      return 1
-    }
-  }, [countMMedia, currentIndex])
+  const renderPaginationDots = useCallback(() => {
+    if (gallery.length <= 1) return null
+
+    return (
+      <View style={styles.paginationContainer}>
+        {gallery.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.paginationDot,
+              {
+                backgroundColor: index === currentIndex
+                  ? theme.colors.primary
+                  : theme.colors.surfaceVariant
+              }
+            ]}
+          />
+        ))}
+      </View>
+    )
+  }, [gallery, currentIndex, theme.colors.primary, theme.colors.surfaceVariant])
 
   useEffect(() => {
     const backAction = () => {
@@ -203,7 +201,7 @@ const EventCarousel = ({ param, rotation }) => {
   return (
     loaded
       ? (
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, position: 'relative' }}>
           <Carousel
             ref={carouselRef}
             defaultIndex={handleDefaultIndex()}
@@ -216,9 +214,7 @@ const EventCarousel = ({ param, rotation }) => {
             renderItem={renderItem}
             onScrollEnd={handleScrollEnd}
           />
-          <View style={{ width: width * 0.75, alignSelf: 'center', margin: 10 }}>
-            <ProgressBar color={theme.colors.primary} progress={calculateProgress()} />
-          </View>
+          {renderPaginationDots()}
           <Modal visible={isModalVisible} transparent animationType='fade'>
             <View style={styles.modalContainer}>
               <Pressable style={styles.modalBackground} onPress={() => setModalVisible(false) || setSelectedImage(null)}>
@@ -267,6 +263,22 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'stretch'
+  },
+  paginationContainer: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6
+  },
+  paginationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    opacity: 0.8
   }
 })
 

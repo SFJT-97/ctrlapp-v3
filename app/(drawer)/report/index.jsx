@@ -1,6 +1,7 @@
 // intento 3
 import React, { useState, useEffect } from 'react'
 import { View, StyleSheet, Text } from 'react-native'
+import { useTheme } from 'react-native-paper'
 import { Drawer } from 'expo-router/drawer'
 import { DrawerToggleButton } from '@react-navigation/drawer'
 import HelpButton from './Components/ReportScreen/HelpButton'
@@ -12,6 +13,7 @@ import CustomActivityIndicator from '../../../globals/components/CustomActivityI
 import { useAsyncStorage } from '../../../context/hooks/ticketNewQH'
 
 export default function ReportScreen () {
+  const theme = useTheme()
   // Estados
   const [dataLoaded, setDataLoaded] = useState(false)
   const [defaultValues, setDefaultValues] = useState({})
@@ -47,7 +49,7 @@ export default function ReportScreen () {
         options={{
           title: 'Event Page',
           headerShown: true,
-          headerLeft: () => <DrawerToggleButton />,
+          headerLeft: () => <DrawerToggleButton tintColor={theme.colors.primary} />,
           headerRight: () => <HelpButton />
         }}
       />

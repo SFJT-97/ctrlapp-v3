@@ -27,7 +27,7 @@ const MyReactMap = ({ selectedSector }) => {
       setSectorPoint(coords)
       const temp = []
       if (selectedSector) {
-        if (Object.keys(selectedSector).length === 0) return <></>
+        if (Object.keys(selectedSector).length === 0) return
         for (let i = 1; i <= 12; i++) {
           if (selectedSector[`pLine${i}X`] && selectedSector[`pLine${i}Y`]) {
             const coords = metersToDegrees(selectedSector[`pLine${i}X`], selectedSector[`pLine${i}Y`])

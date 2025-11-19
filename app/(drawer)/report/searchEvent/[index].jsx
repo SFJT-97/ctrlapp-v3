@@ -788,23 +788,44 @@
 // export default SearchEvent
 
 // version 8
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { View, FlatList, Dimensions, RefreshControl } from 'react-native'
-import { Stack, useRouter } from 'expo-router'
-import { Text, Searchbar, useTheme } from 'react-native-paper'
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
+import { View, FlatList, Dimensions, RefreshControl, TouchableOpacity } from 'react-native'
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router'
+import { Text, Searchbar, useTheme, IconButton, Badge } from 'react-native-paper'
 import { useDebounce } from 'use-debounce'
 import { useApolloClient } from '@apollo/client'
+import { useTranslation } from 'react-i18next'
+import BottomSheet from '@gorhom/bottom-sheet'
 
 import EventCard from '../../home/components/EventCard'
 import { useAsyncStorage } from '../../../../context/hooks/ticketNewQH'
 import CustomActivityIndicator from '../../../../globals/components/CustomActivityIndicator'
+import FilterDrawer from './Components/FilterDrawer'
 // import CardXComponent from './Components/CardXComponent.jsx'
 // import { EMARAY_MOVILE_GIF, EMARAY_CAMERA_JPG } from '../../../../globals/variables/globalVariables.js'
 
 const WIDTH = Dimensions.get('window').width
 const ITEMS_PER_PAGE = 5
 
-// Convert risk qualification and solution type to RiskDot/SolutionDot format
+// Red scale colors for risk qualification
+const riskColors = {
+  0: '#8B0000', // Dark red - Catastrophic/Extremely Dangerous/Very Dangerous
+  1: '#DC143C', // Crimson - Dangerous/Very Serious
+  2: '#FF6347', // Tomato - Serious/Warning
+  3: '#FFA07A', // Light salmon - Low warning/Inconsequential/Secure Event
+  null: '#FFE4E1' // Misty rose - default/unknown
+}
+
+// Yellow scale colors for solution type
+const solutionColors = {
+  0: '#FFFF99', // Light yellow - Resolved
+  1: '#FFD700', // Gold - Pending action
+  2: '#FFA500', // Orange - Partial action
+  3: '#FF8C00', // Dark orange - Immediate action
+  null: '#FFE4B5' // Moccasin - default/unknown
+}
+
+// Convert risk qualification to color index
 function switchRisk (risk) {
   const mapping = {
     Catastrophic: 0,
@@ -821,6 +842,7 @@ function switchRisk (risk) {
   return mapping[risk] ?? null
 }
 
+// Convert solution type to color index
 function switchSolution (solution) {
   const mapping = {
     Resolved: 0,
@@ -831,11 +853,41 @@ function switchSolution (solution) {
   return mapping[solution] ?? null
 }
 
+// Get risk color from risk qualification string
+function getRiskColor (riskQualification) {
+  const index = switchRisk(riskQualification)
+  return riskColors[index] || riskColors.null
+}
+
+// Get solution color from solution type string
+function getSolutionColor (solutionType) {
+  const index = switchSolution(solutionType)
+  return solutionColors[index] || solutionColors.null
+}
+
 const SearchEvent = () => {
+  const { t } = useTranslation('report')
   const router = useRouter()
   const theme = useTheme()
   const client = useApolloClient()
+  const params = useLocalSearchParams()
+  // Check for filter params immediately to prevent modal from opening
+  const hasFilterParamsOnMount = useMemo(() => {
+    const filterParamKeys = [
+      'filterType',
+      'filterRiskQualification',
+      'filterSolutionType',
+      'filterClassificationDescription',
+      'filterCompanySectorDescription',
+      'filterSubType'
+    ]
+    return params && filterParamKeys.some(key => params[key])
+  }, [params])
+
   const [refreshing, setRefreshing] = useState(false)
+  const isNavigatingFromChip = useRef(false)
+  const bottomSheetRef = useRef(null)
+  const processedParamsRef = useRef('')
 
   // Acceso seguro a async storage para tickets
   const { value: ticketsRaw = [], loading: loadingTickets, error: ticketsError } = useAsyncStorage('CTRLA_TICKETS_DATA')
@@ -846,6 +898,7 @@ const SearchEvent = () => {
   const [allUsers, setAllUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm] = useDebounce(searchTerm, 200)
+  const [activeFilters, setActiveFilters] = useState({})
 
   const allTicketsOpen = useMemo(() => {
     if (!Array.isArray(ticketsRaw)) return []
@@ -857,10 +910,14 @@ const SearchEvent = () => {
   }, [ticketsRaw])
 
   useEffect(() => {
-    if (!loadingTickets && Array.isArray(allTicketsOpen)) {
-      setFilterEvents(allTicketsOpen)
-    } else {
-      setFilterEvents([])
+    // Initialize filterEvents when data is available
+    if (!loadingTickets) {
+      if (Array.isArray(allTicketsOpen) && allTicketsOpen.length > 0) {
+        setFilterEvents(allTicketsOpen)
+      } else if (Array.isArray(allTicketsOpen) && allTicketsOpen.length === 0) {
+        // Explicitly set empty array if data is loaded but empty
+        setFilterEvents([])
+      }
     }
   }, [allTicketsOpen, loadingTickets])
 
@@ -872,29 +929,173 @@ const SearchEvent = () => {
     }
   }, [generalDataRaw, loadingGeneralData])
 
+  // Ensure bottom sheet stays closed when navigating from chips (before first render)
+  useLayoutEffect(() => {
+    if (hasFilterParamsOnMount) {
+      isNavigatingFromChip.current = true
+      // Close bottom sheet if it's open
+      bottomSheetRef.current?.close()
+    } else {
+      isNavigatingFromChip.current = false
+    }
+  }, [hasFilterParamsOnMount])
+
+  // Handle initial filters from route params (when navigating from chips)
+  // Process params only once to prevent infinite loops
+  useEffect(() => {
+    // Check if we have filter params (indicating navigation from chip click)
+    const filterParamKeys = [
+      'filterType',
+      'filterRiskQualification',
+      'filterSolutionType',
+      'filterClassificationDescription',
+      'filterCompanySectorDescription',
+      'filterSubType'
+    ]
+
+    const hasFilterParams = params && filterParamKeys.some(key => params[key])
+    
+    // Create a unique key from current params to track if we've processed them
+    const paramsKey = filterParamKeys
+      .map(key => `${key}:${params[key] || ''}`)
+      .join('|')
+
+    // Only process if we have params and haven't processed this exact set before
+    if (hasFilterParams && processedParamsRef.current !== paramsKey) {
+      // Mark these params as processed immediately
+      processedParamsRef.current = paramsKey
+      
+      // Mark that we're navigating from a chip
+      isNavigatingFromChip.current = true
+      // Explicitly close bottom sheet when navigating from chips
+      bottomSheetRef.current?.close()
+      
+      const initialFilters = {}
+      
+      if (params.filterType) {
+        initialFilters.type = [String(params.filterType).toLowerCase()]
+      }
+      if (params.filterRiskQualification) {
+        initialFilters.riskQualification = [String(params.filterRiskQualification)]
+      }
+      if (params.filterSolutionType) {
+        initialFilters.solutionType = [String(params.filterSolutionType)]
+      }
+      if (params.filterClassificationDescription) {
+        initialFilters.classificationDescription = [String(params.filterClassificationDescription)]
+      }
+      if (params.filterCompanySectorDescription) {
+        initialFilters.companySectorDescription = [String(params.filterCompanySectorDescription)]
+      }
+      if (params.filterSubType) {
+        initialFilters.subType = [String(params.filterSubType)]
+      }
+
+      if (Object.keys(initialFilters).length > 0) {
+        // Reset flag to allow filter application useEffect to run
+        isNavigatingFromChip.current = false
+        // Apply filters - this will trigger the filter useEffect below
+        setActiveFilters(initialFilters)
+      }
+
+      // Clear filter params from route immediately to prevent re-processing
+      setTimeout(() => {
+        try {
+          const clearedParams = {}
+          filterParamKeys.forEach(key => {
+            if (params[key]) {
+              clearedParams[key] = ''
+            }
+          })
+          if (Object.keys(clearedParams).length > 0) {
+            router.setParams(clearedParams)
+          }
+          // Reset the flag after clearing params
+          isNavigatingFromChip.current = false
+        } catch (error) {
+          console.debug('Could not clear filter params:', error)
+          isNavigatingFromChip.current = false
+        }
+      }, 100)
+    }
+  }, [params, router])
+
   const handleFilter = useCallback(
-    (term) => {
-      if (!term || !Array.isArray(allTicketsOpen)) {
-        setFilterEvents(allTicketsOpen)
+    (term, filters) => {
+      if (!Array.isArray(allTicketsOpen)) {
+        setFilterEvents([])
         return
       }
 
-      const lowerTerm = term?.toLowerCase()
-      const result = allTicketsOpen?.filter((el) => {
-        const user = allUsers?.find((u) => u?.idUser === el?.idUser)
-        const userName = user?.fullName?.toLowerCase() || ''
+      // Mobile app always shows only open tickets - filter out closed ones
+      let result = allTicketsOpen.filter((el) => !el?.ticketClosed)
 
-        return (
-          el?.ticketCustomDescription?.toLowerCase()?.includes(lowerTerm) ||
-          el?.classificationDescription?.toLowerCase()?.includes(lowerTerm) ||
-          el?.companySectorDescription?.toLowerCase()?.includes(lowerTerm) ||
-          el?.subType?.toLowerCase()?.includes(lowerTerm) ||
-          el?.type?.toLowerCase()?.includes(lowerTerm) ||
-          el?.solutionType?.toLowerCase()?.includes(lowerTerm) ||
-          el?.riskQualification?.toLowerCase()?.includes(lowerTerm) ||
-          userName?.includes(lowerTerm)
-        )
-      })
+      // Apply text search filter
+      if (term && term.trim()) {
+        const lowerTerm = term.toLowerCase()
+        result = result.filter((el) => {
+          const user = allUsers?.find((u) => u?.idUser === el?.idUser)
+          const userName = user?.fullName?.toLowerCase() || ''
+
+          return (
+            el?.ticketCustomDescription?.toLowerCase()?.includes(lowerTerm) ||
+            el?.classificationDescription?.toLowerCase()?.includes(lowerTerm) ||
+            el?.companySectorDescription?.toLowerCase()?.includes(lowerTerm) ||
+            el?.subType?.toLowerCase()?.includes(lowerTerm) ||
+            el?.type?.toLowerCase()?.includes(lowerTerm) ||
+            el?.solutionType?.toLowerCase()?.includes(lowerTerm) ||
+            el?.riskQualification?.toLowerCase()?.includes(lowerTerm) ||
+            userName?.includes(lowerTerm)
+          )
+        })
+      }
+
+      // Apply active filters (AND logic across categories, OR logic within category)
+      if (filters && Object.keys(filters).length > 0) {
+        result = result.filter((el) => {
+          // Type filter - case insensitive matching
+          if (filters.type && filters.type.length > 0) {
+            const elType = String(el?.type || '').toLowerCase()
+            const filterTypes = filters.type.map(t => String(t).toLowerCase())
+            if (!filterTypes.includes(elType)) return false
+          }
+
+          // Risk Qualification filter - exact match
+          if (filters.riskQualification && filters.riskQualification.length > 0) {
+            const elRisk = String(el?.riskQualification || '')
+            if (!filters.riskQualification.includes(elRisk)) return false
+          }
+
+          // Solution Type filter - exact match
+          if (filters.solutionType && filters.solutionType.length > 0) {
+            const elSolution = String(el?.solutionType || '')
+            if (!filters.solutionType.includes(elSolution)) return false
+          }
+
+          // Classification Description filter - exact match
+          if (filters.classificationDescription && filters.classificationDescription.length > 0) {
+            const elClassification = String(el?.classificationDescription || '')
+            if (!filters.classificationDescription.includes(elClassification)) return false
+          }
+
+          // Company Sector Description filter - exact match
+          if (filters.companySectorDescription && filters.companySectorDescription.length > 0) {
+            const elSector = String(el?.companySectorDescription || '')
+            if (!filters.companySectorDescription.includes(elSector)) return false
+          }
+
+          // Sub Type filter - exact match
+          if (filters.subType && filters.subType.length > 0) {
+            const elSubType = String(el?.subType || '')
+            if (!filters.subType.includes(elSubType)) return false
+          }
+
+          // Note: Status filter removed - mobile app always shows only open tickets
+          // Closed tickets are already filtered out at the start of handleFilter
+
+          return true
+        })
+      }
 
       const sorted = result
         .sort((a, b) => new Date(Number(b?.dateTimeEvent)) - new Date(Number(a?.dateTimeEvent)))
@@ -902,15 +1103,43 @@ const SearchEvent = () => {
     }, [allTicketsOpen, allUsers]
   )
 
+  // Apply filters when search term or active filters change
+  // Only apply filters after data is fully loaded
   useEffect(() => {
-    handleFilter(debouncedSearchTerm)
-  }, [debouncedSearchTerm, handleFilter])
+    // Only apply filters if data is loaded and we have tickets data
+    // Skip if we're still processing params to prevent loops
+    if (!loadingTickets && !loadingGeneralData && Array.isArray(allTicketsOpen) && !isNavigatingFromChip.current) {
+      handleFilter(debouncedSearchTerm || '', activeFilters || {})
+    }
+  }, [debouncedSearchTerm, activeFilters, handleFilter, loadingTickets, loadingGeneralData, allTicketsOpen])
+
+  const handleFiltersChange = useCallback((filters) => {
+    setActiveFilters(filters)
+    // Filter will be applied in useEffect above
+  }, [])
+
+  const openFilterSheet = useCallback(() => {
+    // Don't open bottom sheet if we're navigating from a chip
+    if (isNavigatingFromChip.current) {
+      isNavigatingFromChip.current = false
+      return
+    }
+    bottomSheetRef.current?.expand()
+  }, [])
+
+  const closeFilterSheet = useCallback(() => {
+    bottomSheetRef.current?.close()
+  }, [])
+
+  const getActiveFilterCount = useCallback(() => {
+    return Object.values(activeFilters).reduce((count, arr) => count + (arr?.length || 0), 0)
+  }, [activeFilters])
 
   const handlePress = useCallback(
     (item) => {
       // console.log('item', item)
       if (item?.idTicketNew) {
-        router.navigate({
+        router.push({
           pathname: '/report/searchEvent/Components/[event]',
           params: { param: JSON.stringify(item) }
         })
@@ -936,7 +1165,9 @@ const SearchEvent = () => {
       result: item,
       risk: {
         RiskDot: switchRisk(item?.riskQualification),
-        SolutionDot: switchSolution(item?.solutionType)
+        SolutionDot: switchSolution(item?.solutionType),
+        riskColor: getRiskColor(item?.riskQualification),
+        solutionColor: getSolutionColor(item?.solutionType)
       }
     }
   }, [])
@@ -944,17 +1175,46 @@ const SearchEvent = () => {
   // Only show error if there's an actual error AND loading is complete
   const showError = (ticketsError || generalError) && !loadingTickets && !loadingGeneralData
 
+  const activeFilterCount = getActiveFilterCount()
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <Stack.Screen options={{ title: 'Search Events' }} />
+      <Stack.Screen options={{ title: t('search.title') }} />
 
-      <Searchbar
-        placeholder='Search events...'
-        onChangeText={setSearchTerm}
-        value={searchTerm}
-        style={{ margin: 8, elevation: 2 }}
-        inputStyle={{ fontSize: 14 }}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: 8 }}>
+        <Searchbar
+          placeholder={t('search.placeholder')}
+          onChangeText={setSearchTerm}
+          value={searchTerm}
+          style={{ flex: 1, marginRight: 8, elevation: 2 }}
+          inputStyle={{ fontSize: 14 }}
+        />
+        <View style={{ position: 'relative' }}>
+          <TouchableOpacity onPress={openFilterSheet} activeOpacity={0.7}>
+            <IconButton
+              icon='filter-variant'
+              size={24}
+              iconColor={theme.colors.onSurface}
+              style={{ margin: 0 }}
+            />
+          </TouchableOpacity>
+          {activeFilterCount > 0 && (
+            <Badge
+              style={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+                backgroundColor: theme.colors.error,
+                minWidth: 20,
+                height: 20,
+                pointerEvents: 'none'
+              }}
+            >
+              {activeFilterCount}
+            </Badge>
+          )}
+        </View>
+      </View>
 
       {loadingTickets || loadingGeneralData
         ? (
@@ -1007,6 +1267,13 @@ const SearchEvent = () => {
               />
             </>
             )}
+      <FilterDrawer
+        bottomSheetRef={bottomSheetRef}
+        activeFilters={activeFilters}
+        onFiltersChange={handleFiltersChange}
+        allEvents={allTicketsOpen}
+        allUsers={allUsers}
+      />
     </View>
   )
 }

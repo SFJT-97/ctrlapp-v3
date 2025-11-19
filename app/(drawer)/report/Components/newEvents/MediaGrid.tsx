@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { View, StyleSheet, Animated, Alert, ActivityIndicator } from 'react-native'
 import { useTheme, Text, Surface } from 'react-native-paper'
+import { useTranslation } from 'react-i18next'
 import MediaSlot from './MediaSlot'
 import { showImageOptions } from '../../../../../globals/handleImage'
 import { showVideoOptions } from '../../../../../globals/handleVideo'
@@ -42,6 +43,8 @@ export default function MediaGrid({
   setVideo,
   netState = true
 }: MediaGridProps): React.JSX.Element {
+  const { t } = useTranslation('report')
+  const { t: tCommon } = useTranslation()
   const theme = useTheme()
   const [highlightedSlot, setHighlightedSlot] = useState<TargetSlot>(null)
   const [processingSlot, setProcessingSlot] = useState<TargetSlot>(null)
@@ -137,9 +140,9 @@ export default function MediaGrid({
       if (slot === 'video') {
         if (video) {
           // Show replace/delete options
-          Alert.alert('Video', 'What would you like to do?', [
+          Alert.alert(t('media.video'), t('media.videoOptions'), [
             {
-              text: 'Replace',
+              text: t('media.replace'),
               onPress: async () => {
                 setProcessingSlot('video')
                 try {
@@ -150,19 +153,19 @@ export default function MediaGrid({
                   if (!cameraPermission.granted || !micPermission.granted) {
                     const needsSettings = !cameraPermission.canAskAgain || !micPermission.canAskAgain
                     Alert.alert(
-                      'Permissions Required',
+                      t('media.permissionsRequired'),
                       needsSettings
-                        ? 'Camera and microphone permissions are required to record video. Please enable them in your device settings.'
-                        : 'Camera and microphone permissions are required to record video.',
+                        ? t('media.cameraMicRequiredSettings')
+                        : t('media.cameraMicRequired'),
                       needsSettings
                         ? [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Open Settings', onPress: () => {
+                            { text: tCommon('buttons.cancel'), style: 'cancel' },
+                            { text: t('media.openSettings'), onPress: () => {
                               // Note: Linking.openSettings() would go here if needed
                               setProcessingSlot(null)
                             }}
                           ]
-                        : [{ text: 'OK', onPress: () => setProcessingSlot(null) }]
+                        : [{ text: t('media.ok'), onPress: () => setProcessingSlot(null) }]
                     )
                     setProcessingSlot(null)
                     return
@@ -183,17 +186,17 @@ export default function MediaGrid({
                   }
                 } catch (error) {
                   console.error('Error recording video:', error)
-                  Alert.alert('Error', 'Failed to record video. Please try again.')
+                  Alert.alert(t('alerts.error'), t('media.recordError'))
                   setProcessingSlot(null)
                 }
               }
             },
             {
-              text: 'Delete',
+              text: t('media.delete'),
               style: 'destructive',
               onPress: () => setVideo(null)
             },
-            { text: 'Cancel', style: 'cancel' }
+            { text: tCommon('buttons.cancel'), style: 'cancel' }
           ])
         } else {
           // Launch camera immediately for empty video slot
@@ -206,19 +209,19 @@ export default function MediaGrid({
             if (!cameraPermission.granted || !micPermission.granted) {
               const needsSettings = !cameraPermission.canAskAgain || !micPermission.canAskAgain
               Alert.alert(
-                'Permissions Required',
+                t('media.permissionsRequired'),
                 needsSettings
-                  ? 'Camera and microphone permissions are required to record video. Please enable them in your device settings.'
-                  : 'Camera and microphone permissions are required to record video.',
+                  ? t('media.cameraMicRequiredSettings')
+                  : t('media.cameraMicRequired'),
                 needsSettings
                   ? [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Open Settings', onPress: () => {
+                      { text: tCommon('buttons.cancel'), style: 'cancel' },
+                      { text: t('media.openSettings'), onPress: () => {
                         // Note: Linking.openSettings() would go here if needed
                         setProcessingSlot(null)
                       }}
                     ]
-                  : [{ text: 'OK', onPress: () => setProcessingSlot(null) }]
+                  : [{ text: t('media.ok'), onPress: () => setProcessingSlot(null) }]
               )
               setProcessingSlot(null)
               return
@@ -248,9 +251,9 @@ export default function MediaGrid({
         const currentImage = slot === 1 ? image1 : slot === 2 ? image2 : image3
         if (currentImage) {
           // Show replace/delete options
-          Alert.alert(`Photo ${slot}`, 'What would you like to do?', [
+          Alert.alert(t('media.video'), t('media.videoOptions'), [
             {
-              text: 'Replace',
+              text: t('media.replace'),
               onPress: async () => {
                 setProcessingSlot(slot)
                 try {
@@ -258,19 +261,19 @@ export default function MediaGrid({
                   const permissionResult = await requestCameraPermissions()
                   if (!permissionResult.granted) {
                     Alert.alert(
-                      'Permission Required',
+                      t('media.permissionsRequired'),
                       !permissionResult.canAskAgain
-                        ? 'Camera permission is required to take photos. Please enable it in your device settings.'
-                        : 'Camera permission is required to take photos.',
+                        ? t('media.cameraMicRequiredSettings')
+                        : t('media.cameraMicRequired'),
                       !permissionResult.canAskAgain
                         ? [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Open Settings', onPress: () => {
+                            { text: tCommon('buttons.cancel'), style: 'cancel' },
+                            { text: t('media.openSettings'), onPress: () => {
                               // Note: Linking.openSettings() would go here if needed
                               setProcessingSlot(null)
                             }}
                           ]
-                        : [{ text: 'OK', onPress: () => setProcessingSlot(null) }]
+                        : [{ text: t('media.ok'), onPress: () => setProcessingSlot(null) }]
                     )
                     setProcessingSlot(null)
                     return
@@ -290,13 +293,13 @@ export default function MediaGrid({
                   }
                 } catch (error) {
                   console.error('Error taking photo:', error)
-                  Alert.alert('Error', 'Failed to take photo. Please try again.')
+                  Alert.alert(t('alerts.error'), t('media.captureError'))
                   setProcessingSlot(null)
                 }
               }
             },
             {
-              text: 'Delete',
+              text: t('media.delete'),
               style: 'destructive',
               onPress: () => {
                 if (slot === 1) setImage1(null)
@@ -304,7 +307,7 @@ export default function MediaGrid({
                 if (slot === 3) setImage3(null)
               }
             },
-            { text: 'Cancel', style: 'cancel' }
+            { text: tCommon('buttons.cancel'), style: 'cancel' }
           ])
         } else {
           // Launch camera immediately for empty photo slot
@@ -314,19 +317,19 @@ export default function MediaGrid({
             const permissionResult = await requestCameraPermissions()
             if (!permissionResult.granted) {
               Alert.alert(
-                'Permission Required',
+                t('media.permissionsRequired'),
                 !permissionResult.canAskAgain
-                  ? 'Camera permission is required to take photos. Please enable it in your device settings.'
-                  : 'Camera permission is required to take photos.',
+                  ? t('media.cameraMicRequiredSettings')
+                  : t('media.cameraMicRequired'),
                 !permissionResult.canAskAgain
                   ? [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Open Settings', onPress: () => {
+                      { text: tCommon('buttons.cancel'), style: 'cancel' },
+                      { text: t('media.openSettings'), onPress: () => {
                         // Note: Linking.openSettings() would go here if needed
                         setProcessingSlot(null)
                       }}
                     ]
-                  : [{ text: 'OK', onPress: () => setProcessingSlot(null) }]
+                  : [{ text: t('media.ok'), onPress: () => setProcessingSlot(null) }]
               )
               setProcessingSlot(null)
               return

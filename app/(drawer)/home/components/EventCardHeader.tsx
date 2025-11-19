@@ -1,14 +1,12 @@
 import React from 'react'
 import { View, TouchableOpacity } from 'react-native'
-import { Avatar, Text, useTheme } from 'react-native-paper'
-import { useRouter } from 'expo-router'
+import { Text, useTheme } from 'react-native-paper'
 
 interface EventCardHeaderProps {
   classification?: string
   classificationDescription?: string
   companySectorDescription?: string
   dateTimeEvent?: string | number
-  userProfileImage?: string
   userName?: string
   onPress?: () => void
 }
@@ -18,12 +16,10 @@ const EventCardHeader: React.FC<EventCardHeaderProps> = ({
   classificationDescription,
   companySectorDescription,
   dateTimeEvent,
-  userProfileImage,
   userName,
   onPress
 }) => {
   const theme = useTheme()
-  const router = useRouter()
 
   const formatDateTime = (timestamp?: string | number): string => {
     if (!timestamp && timestamp !== 0) return 'Just now'
@@ -47,10 +43,6 @@ const EventCardHeader: React.FC<EventCardHeaderProps> = ({
     return `${day}/${month}/${year}`
   }
 
-  const avatarSource = userProfileImage && userProfileImage.trim() !== ''
-    ? { uri: userProfileImage }
-    : undefined
-
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -63,19 +55,6 @@ const EventCardHeader: React.FC<EventCardHeaderProps> = ({
         backgroundColor: theme.colors.surface
       }}
     >
-      {avatarSource ? (
-        <Avatar.Image
-          size={40}
-          source={avatarSource}
-          style={{ backgroundColor: theme.colors.surfaceVariant, marginRight: 12 }}
-        />
-      ) : (
-        <Avatar.Text
-          size={40}
-          label={userName?.[0]?.toUpperCase() || companySectorDescription?.[0]?.toUpperCase() || 'E'}
-          style={{ backgroundColor: theme.colors.surfaceVariant, marginRight: 12 }}
-        />
-      )}
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
           <Text

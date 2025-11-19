@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext, useCallback } from 'react'
 import { View, TouchableOpacity } from 'react-native'
 import { TextInput, IconButton, useTheme, Text } from 'react-native-paper'
 import { gql, useMutation } from '@apollo/client'
+import { useTranslation } from 'react-i18next'
 
 // Custom modules
 import { useMe } from '../../../../context/hooks/userQH'
@@ -121,6 +122,7 @@ interface ChatValues {
 }
 
 const MsgInput: React.FC<MsgInputProps> = ({ idUserTo, idConversation, userProfileImageTo }) => {
+  const { t } = useTranslation('chat')
   const theme = useTheme()
   const styles = createChatStyles(theme)
   const context = useContext(DataContext)
@@ -224,7 +226,7 @@ const MsgInput: React.FC<MsgInputProps> = ({ idUserTo, idConversation, userProfi
           style={styles.textInput}
           value={msg}
           mode='flat'
-          placeholder='Type a message...'
+          placeholder={t('input.placeholder')}
           placeholderTextColor={theme.colors.onSurfaceVariant}
           multiline
           maxLength={MAX_LENGTH}

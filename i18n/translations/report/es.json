@@ -1,3 +1,71 @@
 {
-  "title": "Evento"
+  "title": "Evento",
+  "form": {
+    "labels": {
+      "classification": "Clasificación",
+      "subtype": "Subtipo",
+      "risk": "Calificación de Riesgo",
+      "solution": "Estado de Solución",
+      "description": "Descripción",
+      "dateTime": "Fecha y Hora",
+      "sector": "Sector"
+    },
+    "placeholders": {
+      "description": "Ingresa la descripción del evento...",
+      "selectClassification": "Selecciona clasificación",
+      "selectSubtype": "Selecciona subtipo",
+      "selectRisk": "Selecciona calificación de riesgo",
+      "selectSolution": "Selecciona estado de solución",
+      "selectSector": "Selecciona sector"
+    }
+  },
+  "alerts": {
+    "success": "Éxito",
+    "submitSuccess": "¡Ticket enviado exitosamente!",
+    "savedOffline": "Guardado Sin Conexión",
+    "offlineMessage": "Ticket guardado sin conexión y se subirá cuando haya conexión disponible.",
+    "error": "Error",
+    "saveError": "Error al guardar el ticket. Por favor intenta de nuevo.",
+    "permissionDenied": "Permiso Denegado",
+    "audioPermissionMessage": "Se requiere permiso de grabación de audio para grabar eventos de voz.",
+    "recordingError": "Error de Grabación",
+    "recordingErrorMessage": "Error al iniciar la grabación de audio. Por favor intenta de nuevo.",
+    "aiProcessingError": "Error al procesar la respuesta de IA. Por favor intenta grabar de nuevo.",
+    "warning": "¡Advertencia!",
+    "incompleteForm": "Por favor completa toda la información necesaria.",
+    "cancel": "Cancelar ⛔"
+  },
+  "validation": {
+    "required": "Este campo es requerido",
+    "invalidFormat": "Formato inválido"
+  },
+  "sections": {
+    "eventDetails": "Detalles del Evento",
+    "media": "Medios",
+    "location": "Ubicación"
+  },
+  "search": {
+    "title": "Buscar Eventos",
+    "placeholder": "Buscar eventos...",
+    "filters": "Filtros"
+  },
+  "voice": {
+    "recording": "Grabando...",
+    "processing": "Procesando...",
+    "uploading": "Subiendo..."
+  },
+  "media": {
+    "video": "Video",
+    "videoOptions": "¿Qué te gustaría hacer?",
+    "replace": "Reemplazar",
+    "delete": "Eliminar",
+    "permissionsRequired": "Permisos Requeridos",
+    "cameraMicRequired": "Se requieren permisos de cámara y micrófono para grabar video.",
+    "cameraMicRequiredSettings": "Se requieren permisos de cámara y micrófono para grabar video. Por favor habilítalos en la configuración de tu dispositivo.",
+    "openSettings": "Abrir Configuración",
+    "ok": "OK",
+    "captureError": "Error al capturar foto. Por favor intenta de nuevo.",
+    "recordError": "Error al grabar video. Por favor intenta de nuevo.",
+    "mediaError": "Ocurrió un error al capturar medios."
+  }
 }

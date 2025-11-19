@@ -1,8 +1,8 @@
 // ==> 2024-10-02
 // Builtin modules
 import { useEffect, useState, useCallback } from 'react'
-import { ScrollView, View, RefreshControl } from 'react-native'
-import { Stack, useLocalSearchParams } from 'expo-router'
+import { ScrollView, View, RefreshControl, TouchableOpacity } from 'react-native'
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
 import { Chip, useTheme, Text, Divider } from 'react-native-paper'
 import { useApolloClient } from '@apollo/client'
 
@@ -29,7 +29,17 @@ const EventPage = () => {
   const [refreshing, setRefreshing] = useState(false)
   const theme = useTheme()
   const client = useApolloClient()
+  const router = useRouter()
   const param = useLocalSearchParams()
+
+  const handleStatusChipPress = useCallback(() => {
+    router.push({
+      pathname: '/report/searchEvent',
+      params: {
+        filterStatus: closed
+      }
+    })
+  }, [router, closed])
 
   useEffect(() => {
     if (param !== undefined) {
@@ -111,18 +121,20 @@ const EventPage = () => {
             }}
           >
             <Chips param={param} />
-            <Chip
-              textStyle={{ textAlign: 'center', fontWeight: 'bold', fontSize: 12 }}
-              style={{
-                backgroundColor:
-                  closed === 'Open'
-                    ? theme.colors.errorContainer
-                    : theme.colors.secondaryContainer,
-                height: 32
-              }}
-            >
-              Status: {closed}
-            </Chip>
+            <TouchableOpacity onPress={handleStatusChipPress}>
+              <Chip
+                textStyle={{ textAlign: 'center', fontWeight: 'bold', fontSize: 12 }}
+                style={{
+                  backgroundColor:
+                    closed === 'Open'
+                      ? theme.colors.errorContainer
+                      : theme.colors.secondaryContainer,
+                  height: 32
+                }}
+              >
+                Status: {closed}
+              </Chip>
+            </TouchableOpacity>
           </View>
 
           <Divider style={{ marginVertical: 8 }} />

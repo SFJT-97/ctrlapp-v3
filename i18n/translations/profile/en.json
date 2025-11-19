@@ -1,0 +1,56 @@
+{
+  "title": "Profile",
+  "sections": {
+    "personalInfo": "Personal Information",
+    "contactInfo": "Contact Information",
+    "preferences": "Preferences"
+  },
+  "labels": {
+    "name": "Name",
+    "company": "Company",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address"
+  },
+  "placeholders": {
+    "name": "Name",
+    "company": "Company",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address"
+  },
+  "buttons": {
+    "save": "Save Changes",
+    "cancel": "Cancel"
+  },
+  "preferences": {
+    "language": "Language",
+    "theme": "Theme",
+    "themeOptions": {
+      "light": "Light",
+      "dark": "Dark"
+    }
+  },
+  "alerts": {
+    "success": "Success",
+    "updateSuccess": "Profile updated successfully",
+    "error": "Error",
+    "loadError": "Failed to load user data. Please try again",
+    "saveError": "Failed to save profile. Please try again",
+    "themeUpdateError": "Failed to update theme. Please try again",
+    "validationError": "Validation Error",
+    "validationMessage": "Please check the provided information",
+    "userDataNotLoaded": "User data not loaded. Please refresh the page"
+  },
+  "errors": {
+    "loadFailed": "Failed to load profile",
+    "configNotFound": "User configuration ID not found",
+    "imageUploadFailed": "Failed to upload image"
+  },
+  "validation": {
+    "emailInvalid": "Please enter a valid email address",
+    "phoneInvalid": "Please enter a valid phone number",
+    "addressInvalid": "Please enter a valid address"
+  }
+}
+

@@ -170,7 +170,7 @@ export default function HomePage(): React.JSX.Element {
           options={{
             title: 'Home',
             headerShown: true,
-            headerLeft: () => <DrawerToggleButton />
+            headerLeft: () => <DrawerToggleButton tintColor={theme.colors.primary} />
           }}
         />
         <View style={styles.loadingContainer}>
@@ -191,7 +191,7 @@ export default function HomePage(): React.JSX.Element {
           options={{
             title: 'Home',
             headerShown: true,
-            headerLeft: () => <DrawerToggleButton />
+            headerLeft: () => <DrawerToggleButton tintColor={theme.colors.primary} />
           }}
         />
         <View style={styles.errorContainer}>
@@ -210,7 +210,7 @@ export default function HomePage(): React.JSX.Element {
         options={{
           title: 'Home',
           headerShown: true,
-          headerLeft: () => <DrawerToggleButton />,
+          headerLeft: () => <DrawerToggleButton tintColor={theme.colors.primary} />,
           headerRight: () => (
             <View style={styles.headerButtons}>
               <IconButton

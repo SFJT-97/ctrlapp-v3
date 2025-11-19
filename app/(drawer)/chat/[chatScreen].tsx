@@ -4,6 +4,7 @@ import { useLocalSearchParams, Stack } from 'expo-router'
 import { useIsFocused } from '@react-navigation/native'
 import { gql, useLazyQuery, useMutation, useApolloClient } from '@apollo/client'
 import { useTheme, Text } from 'react-native-paper'
+import { useTranslation } from 'react-i18next'
 
 // Custom modules
 import { getFormatedTime } from '../../../globals/functions/functions'
@@ -81,6 +82,7 @@ const groupMessagesByDate = (messages: ChatMessage[]): MessageGroup[] => {
 }
 
 const ChatScreen: React.FC = () => {
+  const { t } = useTranslation('chat')
   const theme = useTheme()
   const styles = createChatStyles(theme)
   const client = useApolloClient()

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { View, ScrollView, Alert } from 'react-native'
 import { Button, useTheme } from 'react-native-paper'
 import NetInfo from '@react-native-community/netinfo'
+import { useTranslation } from 'react-i18next'
 
 // Custom modules
 import CustomActivityIndicator from '../../../../../globals/components/CustomActivityIndicator'
@@ -180,6 +181,7 @@ interface ReportEventProps {
 }
 
 export default function ReportEvent({ defaultValues, name }: ReportEventProps): React.JSX.Element {
+  const { t } = useTranslation('report')
   const theme = useTheme()
   const router = useRouter()
   const [addNewTicketNew] = useMutation(addNewTicketNewM)
@@ -236,9 +238,9 @@ export default function ReportEvent({ defaultValues, name }: ReportEventProps): 
       !solutionState ||
       !companySector
     ) {
-      Alert.alert('Warning!', 'Please complete all the information needed.', [
+      Alert.alert(t('alerts.warning'), t('alerts.incompleteForm'), [
         {
-          text: 'Cancel ⛔',
+          text: t('alerts.cancel'),
           style: 'cancel'
         }
       ])
@@ -319,7 +321,7 @@ export default function ReportEvent({ defaultValues, name }: ReportEventProps): 
             await cleanupCameraFiles(fileUris)
           }
           
-          Alert.alert('Success', 'Ticket submitted successfully!')
+          Alert.alert(t('alerts.success'), t('alerts.submitSuccess'))
           router.back()
         } catch (error) {
           console.error('Error uploading ticket:', error)
@@ -330,8 +332,8 @@ export default function ReportEvent({ defaultValues, name }: ReportEventProps): 
             fromVoiceOffLine: false
           })
           Alert.alert(
-            'Saved Offline',
-            'Ticket saved offline and will be uploaded when connection is available.'
+            t('alerts.savedOffline'),
+            t('alerts.offlineMessage')
           )
           router.back()
         }
@@ -343,14 +345,14 @@ export default function ReportEvent({ defaultValues, name }: ReportEventProps): 
           fromVoiceOffLine: false
         })
         Alert.alert(
-          'Saved Offline',
-          'Ticket saved offline and will be uploaded when connection is available.'
+          t('alerts.savedOffline'),
+          t('alerts.offlineMessage')
         )
         router.back()
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error)
-      Alert.alert('Error', 'Failed to save ticket. Please try again.')
+      Alert.alert(t('alerts.error'), t('alerts.saveError'))
     } finally {
       setLoad(false)
     }

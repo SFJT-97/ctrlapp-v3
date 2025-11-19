@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Dimensions, View } from 'react-native'
-import { Text } from 'react-native-paper'
+import { Text, useTheme } from 'react-native-paper'
 import { Drawer } from 'expo-router/drawer'
 import { DrawerToggleButton } from '@react-navigation/drawer'
 import * as ScreenOrientation from 'expo-screen-orientation'
+import { useTranslation } from 'react-i18next'
 
 // Custom modules
 import MyReactMap from './components/MyReactMap'
@@ -16,6 +17,8 @@ import { ORIENTATION_PORTRAIT, ORIENTATION_LANDSCAPE } from '../../../globals/co
 import { CompanySector } from '../../../types'
 
 const SectorCanvas: React.FC = () => {
+  const { t } = useTranslation('settings')
+  const theme = useTheme()
   // states
   const [companySector, setCompanySector] = useState<CompanySector[]>([])
   const [selectedSector, setSelectedSector] = useState<CompanySector[]>([])
@@ -26,30 +29,29 @@ const SectorCanvas: React.FC = () => {
 
   const [orientation, setOrientation] = useState<number | null>(null)
   
-  // FIXED: Use proper hook return structure
-  const { me, loading: meLoading } = useMe()
-  const { sectors: myCompanySectors, loading: sectorsLoading } = useMyCompanySectors()
+  const { me } = useMe()
+  const myCompanySectors = useMyCompanySectors()
 
   const screenWidth = Dimensions.get('screen').width
   const screenHeight = Dimensions.get('screen').height
 
   useEffect(() => {
-    if (!meLoading && me) {
+    if (me && me !== 'Loading...' && me !== 'Apollo Error') {
       setCompanyName(me.companyName || '')
     }
-  }, [me, meLoading])
+  }, [me])
 
   useEffect(() => {
-    if (!sectorsLoading && myCompanySectors) {
-      setCompanySector(myCompanySectors)
+    // Adapt to current hook structure which returns { loading, sectors, error }
+    if (myCompanySectors && !myCompanySectors.loading && myCompanySectors.sectors) {
+      setCompanySector(myCompanySectors.sectors)
     }
-  }, [myCompanySectors, sectorsLoading])
+  }, [myCompanySectors])
 
-  // FIXED: Proper subscription initialization
   useEffect(() => {
     let subscription: ScreenOrientation.OrientationChangeListener | null = null
 
-    const getCurrentOrientation = async (): Promise<void> => {
+    const getCurrentOrientation = async () => {
       try {
         const currentOrientation = await ScreenOrientation.getOrientationAsync()
         setOrientation(currentOrientation)
@@ -58,9 +60,7 @@ const SectorCanvas: React.FC = () => {
       }
     }
 
-    const handleOrientationChange = (
-      event: ScreenOrientation.OrientationChangeEvent
-    ): void => {
+    const handleOrientationChange = (event: ScreenOrientation.OrientationChangeEvent) => {
       setOrientation(event.orientationInfo.orientation)
     }
 
@@ -71,24 +71,22 @@ const SectorCanvas: React.FC = () => {
     subscription = ScreenOrientation.addOrientationChangeListener(handleOrientationChange)
 
     return () => {
-      // FIXED: Proper cleanup
+      // Cleanup listener
       if (subscription) {
         ScreenOrientation.removeOrientationChangeListener(subscription)
       }
     }
   }, [])
 
-  // FIXED: Use named constants instead of magic numbers
-  const isPortrait = orientation !== null && orientation < ORIENTATION_LANDSCAPE
-
-  if (isPortrait) {
+  // Original orientation check: orientation < 2 for portrait
+  if (orientation !== null && orientation < 2) {
     return (
       <View>
         <Drawer.Screen
           options={{
-            title: 'Sectors',
+            title: t('title'),
             headerShown: true,
-            headerLeft: () => <DrawerToggleButton />
+            headerLeft: () => <DrawerToggleButton tintColor={theme.colors.primary} />
           }}
         />
 
@@ -108,55 +106,20 @@ const SectorCanvas: React.FC = () => {
               selectedStandardSector={selectedStandardSector}
             />
           </View>
+          <View style={{ paddingHorizontal: 5, height: screenHeight - 220, width: screenWidth }}>
+            <MyReactMap selectedSector={selectedSector[0]} />
+          </View>
         </View>
       </View>
     )
-  }
-
-  // Landscape view
-  return (
-    <View>
-      <Drawer.Screen
-        options={{
-          title: 'Sectors',
-          headerShown: true,
-          headerLeft: () => <DrawerToggleButton />
-        }}
-      />
-      <View style={{ flexDirection: 'row', height: screenHeight }}>
-        <View style={{ width: screenWidth * 0.3, marginVertical: 10, rowGap: 10 }}>
-          <View style={{ paddingHorizontal: 5 }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold' }}>
-              {companyName} sectors
-            </Text>
-            <CompanySectorDropdown
-              myCompanySectors={companySector}
-              setCompanySector={setSelectedSector}
-              setSelectedStandardSector={setSelectedStandardSector}
-              setSelectedSectorAux={setSelectedSectorAux}
-              setSelectedSectorIdAux={setSelectedSectorIdAux}
-              selectedSectorAux={selectedSectorAux}
-              selectedSectorIdAux={selectedSectorIdAux}
-              selectedStandardSector={selectedStandardSector}
-            />
-          </View>
-        </View>
-        <View style={{ width: screenWidth * 0.7 }}>
-          <MyReactMap
-            selectedSector={selectedSector}
-            selectedSectorAux={selectedSectorAux}
-            selectedSectorIdAux={selectedSectorIdAux}
-            setSelectedSector={setSelectedSector}
-            setSelectedSectorAux={setSelectedSectorAux}
-            setSelectedSectorIdAux={setSelectedSectorIdAux}
-            companySector={companySector}
-            screenWidth={screenWidth}
-            screenHeight={screenHeight}
-          />
-        </View>
+  } else {
+    // Landscape view - map only
+    return (
+      <View style={{ paddingHorizontal: 2, height: screenHeight - 20, width: screenWidth }}>
+        <MyReactMap selectedSector={selectedSector[0]} />
       </View>
-    </View>
-  )
+    )
+  }
 }
 
 export default SectorCanvas

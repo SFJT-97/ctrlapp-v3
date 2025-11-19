@@ -1,0 +1,30 @@
+{
+  "login": {
+    "title": "CONTROL ACCIÓN",
+    "placeholders": {
+      "username": "User / email",
+      "password": "Password"
+    },
+    "buttons": {
+      "login": "Login",
+      "biometric": "Use fingerprint"
+    }
+  },
+  "errors": {
+    "loginFailed": "Login failed",
+    "noToken": "No token received from server",
+    "biometricFailed": "Biometric authentication failed",
+    "biometricNotAvailable": "Please log in with username and password first",
+    "generic": "An error occurred during authentication"
+  },
+  "biometric": {
+    "promptMessage": "Biometric Authentication",
+    "fallbackLabel": "Use Password"
+  },
+  "validation": {
+    "usernameRequired": "Username is required",
+    "passwordRequired": "Password is required",
+    "invalidCredentials": "Invalid username or password"
+  }
+}
+

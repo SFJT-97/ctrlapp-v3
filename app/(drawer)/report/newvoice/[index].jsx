@@ -13,6 +13,7 @@ import { gql, useMutation, useLazyQuery } from '@apollo/client'
 import * as FileSystem from 'expo-file-system'
 import { Platform, Alert } from 'react-native'
 import { PermissionsAndroid } from 'react-native'
+import { useTranslation } from 'react-i18next'
 
 // new builtin module
 import NetInfo from '@react-native-community/netinfo'
@@ -43,6 +44,7 @@ const languageCode = 'es-Ar'
 const TIMER_LIMIT = 14 // max time in seconds
 
 const NewVoice = () => {
+  const { t } = useTranslation('report')
   const params = useLocalSearchParams()
   const ticketsAcount = params?.ticketsAcount
   const name = params?.name
@@ -184,7 +186,7 @@ const NewVoice = () => {
         console.log('Permission denied')
         setIsRecording(false)
         setError('Audio recording permission denied')
-        Alert.alert('Permission Denied', 'Audio recording permission is required to record voice events.')
+        Alert.alert(t('alerts.permissionDenied'), t('alerts.audioPermissionMessage'))
         return
       }
       
@@ -269,7 +271,7 @@ const NewVoice = () => {
       setIsRecording(false)
       setIsDone(false)
       setIsUploading(false)
-      Alert.alert('Recording Error', err?.message || String(err) || 'Failed to start audio recording. Please try again.')
+      Alert.alert(t('alerts.recordingError'), err?.message || String(err) || t('alerts.recordingErrorMessage'))
     }
   }
 
@@ -446,18 +448,18 @@ const NewVoice = () => {
           console.log('urgentReport =', urgentReport)
           console.log('error =', error)
           setIsUploading(false)
-          Alert.alert('Error', 'Failed to process AI response. Please try recording again.')
+          Alert.alert(t('alerts.error'), t('alerts.aiProcessingError'))
         }
       } catch (err) {
         console.log('Error sending audio file to server...\n', err)
         setIsUploading(false)
-        Alert.alert('Error', 'Failed to transcribe audio. Please try again.')
+        Alert.alert(t('alerts.error'), t('alerts.saveError'))
       }
 
       setRecording(null)
     } catch (error) {
       console.error('Error stopping recording:', error)
-      Alert.alert('Error', 'Failed to stop recording. Please try again.')
+      Alert.alert(t('alerts.error'), t('alerts.saveError'))
       setIsRecording(false)
     }
   }
@@ -631,7 +633,7 @@ const checkPermissions = async () => {
     return true
   } catch (error) {
     console.error('Error checking audio permissions:', error)
-    Alert.alert('Error', 'Failed to check audio permissions. Please try again.')
+    Alert.alert(t('alerts.error'), t('alerts.saveError'))
     return false
   }
 }

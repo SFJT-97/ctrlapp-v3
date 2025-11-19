@@ -1,3 +1,71 @@
 {
-  "title": "Event"
+  "title": "Event",
+  "form": {
+    "labels": {
+      "classification": "Classification",
+      "subtype": "Subtype",
+      "risk": "Risk Qualification",
+      "solution": "Solution State",
+      "description": "Description",
+      "dateTime": "Date & Time",
+      "sector": "Sector"
+    },
+    "placeholders": {
+      "description": "Enter event description...",
+      "selectClassification": "Select classification",
+      "selectSubtype": "Select subtype",
+      "selectRisk": "Select risk qualification",
+      "selectSolution": "Select solution state",
+      "selectSector": "Select sector"
+    }
+  },
+  "alerts": {
+    "success": "Success",
+    "submitSuccess": "Ticket submitted successfully!",
+    "savedOffline": "Saved Offline",
+    "offlineMessage": "Ticket saved offline and will be uploaded when connection is available.",
+    "error": "Error",
+    "saveError": "Failed to save ticket. Please try again.",
+    "permissionDenied": "Permission Denied",
+    "audioPermissionMessage": "Audio recording permission is required to record voice events.",
+    "recordingError": "Recording Error",
+    "recordingErrorMessage": "Failed to start audio recording. Please try again.",
+    "aiProcessingError": "Failed to process AI response. Please try recording again.",
+    "warning": "Warning!",
+    "incompleteForm": "Please complete all the information needed.",
+    "cancel": "Cancel ⛔"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalidFormat": "Invalid format"
+  },
+  "sections": {
+    "eventDetails": "Event Details",
+    "media": "Media",
+    "location": "Location"
+  },
+  "search": {
+    "title": "Search Events",
+    "placeholder": "Search events...",
+    "filters": "Filters"
+  },
+  "voice": {
+    "recording": "Recording...",
+    "processing": "Processing...",
+    "uploading": "Uploading..."
+  },
+  "media": {
+    "video": "Video",
+    "videoOptions": "What would you like to do?",
+    "replace": "Replace",
+    "delete": "Delete",
+    "permissionsRequired": "Permissions Required",
+    "cameraMicRequired": "Camera and microphone permissions are required to record video.",
+    "cameraMicRequiredSettings": "Camera and microphone permissions are required to record video. Please enable them in your device settings.",
+    "openSettings": "Open Settings",
+    "ok": "OK",
+    "captureError": "Failed to capture photo. Please try again.",
+    "recordError": "Failed to record video. Please try again.",
+    "mediaError": "An error occurred while capturing media."
+  }
 }

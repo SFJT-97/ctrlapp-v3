@@ -3,6 +3,7 @@
 import { Alert } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
+import i18n from '../i18n'
 
 // Custom modules
 import imagesToWEBP from './functions/imagesToWEBP' // activar si quiero modificar el tamaño
@@ -128,19 +129,25 @@ export const handleChangeImageFromCamera = async (setImage, isProfileImg = false
   }
 }
 
-export async function showImageOptions (setImage, alTtle = 'Select image...', alMsg = 'from:', isProfileImg = false, returnOnlyUri = false) {
-  Alert.alert(alTtle, alMsg, [
+export async function showImageOptions (setImage, alTtle = null, alMsg = null, isProfileImg = false, returnOnlyUri = false) {
+  const title = alTtle || (i18n.language === 'es' ? 'Seleccionar imagen...' : 'Select image...')
+  const message = alMsg || (i18n.language === 'es' ? 'desde:' : 'from:')
+  const cancelText = i18n.language === 'es' ? '⛔ Cancelar' : '⛔ Cancel'
+  const internalMemoryText = i18n.language === 'es' ? '📂 Memoria Interna' : '📂 Internal Memory'
+  const galleryText = i18n.language === 'es' ? '🖼️ Galería' : '🖼️ Gallery'
+  
+  Alert.alert(title, message, [
     {
-      text: '⛔ Cancel',
+      text: cancelText,
       style: 'cancel'
       // onPress: () => Alert.alert('canceled by user')
     },
     {
-      text: '📂 Internal Memory',
+      text: internalMemoryText,
       onPress: () => handleInternalMemory(setImage, isProfileImg, returnOnlyUri)
     },
     {
-      text: '🖼️ Gallery',
+      text: galleryText,
       onPress: () => handleChangeImageFromGallery(setImage, isProfileImg, returnOnlyUri)
     }
   ], 'cancelable')

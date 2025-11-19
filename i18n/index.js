@@ -8,23 +8,29 @@ import { I18nManager } from 'react-native'
 const resources = {
   en: {
     common: require('./translations/common/en.json'),
+    auth: require('./translations/auth/en.json'),
+    profile: require('./translations/profile/en.json'),
     donutCharts: require('./translations/home/en.json').donutChart,
     position: require('./translations/home/en.json').position,
     banner: require('./translations/home/en.json').banner,
     overview: require('./translations/home/en.json').overview,
     settings: require('./translations/settings/en.json'),
     chat: require('./translations/chat/en.json'),
-    report: require('./translations/report/en.json')
+    report: require('./translations/report/en.json'),
+    voice: require('./translations/voice/en.json')
   },
   es: {
     common: require('./translations/common/es.json'),
+    auth: require('./translations/auth/es.json'),
+    profile: require('./translations/profile/es.json'),
     donutCharts: require('./translations/home/es.json').donutChart,
     position: require('./translations/home/es.json').position,
     banner: require('./translations/home/es.json').banner,
     overview: require('./translations/home/es.json').overview,
     settings: require('./translations/settings/es.json'),
     chat: require('./translations/chat/es.json'),
-    report: require('./translations/report/es.json')
+    report: require('./translations/report/es.json'),
+    voice: require('./translations/voice/es.json')
   }
 }
 
@@ -35,7 +41,7 @@ i18n
     resources,
     fallbackLng: 'en',
     lng: 'en', // Default to English
-    ns: ['common', 'donutCharts', 'position', 'banner', 'overview', 'settings', 'chat', 'report'],
+    ns: ['common', 'auth', 'profile', 'donutCharts', 'position', 'banner', 'overview', 'settings', 'chat', 'report', 'voice'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false

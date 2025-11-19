@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import * as ScreenOrientation from 'expo-screen-orientation'
+import { useTranslation } from 'react-i18next'
 
 // Custom modules
 import EventCarousel from '../../../home/components/event/EventCarousel'
@@ -14,13 +15,21 @@ import { Chip, useTheme } from 'react-native-paper'
 import ShowComments from '../../../home/components/event/ShowComments'
 
 const EventPage = () => {
+  const { t } = useTranslation('report')
   const [loaded, setLoaded] = useState(false)
   const [closed, setClosed] = useState('Open')
   const [newState, setNewState] = useState(false)
   const theme = useTheme()
   let { param } = useLocalSearchParams()
   // console.log('param', param)
-  param = JSON.parse(param)
+  try {
+    if (typeof param === 'string') {
+      param = JSON.parse(param)
+    }
+  } catch (error) {
+    console.error('Error parsing param:', error)
+    param = {}
+  }
 
   const [orientation, setOrientation] = useState(null)
   // console.log('par param', param)
@@ -70,7 +79,8 @@ const EventPage = () => {
       <ScrollView>
         <Stack.Screen
           options={{
-            title: ('Event Details...')
+            title: t('sections.eventDetails'),
+            headerShown: true
           }}
         />
         {
@@ -100,7 +110,8 @@ const EventPage = () => {
       <ScrollView>
         <Stack.Screen
           options={{
-            title: ('Event Details...'),
+            title: t('sections.eventDetails'),
+            headerShown: true,
             fullScreenGestureEnabled: true
           }}
         />

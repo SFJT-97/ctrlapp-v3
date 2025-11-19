@@ -1,3 +1,14 @@
 {
-  "title": "Configuración"
+  "title": "Configuración",
+  "sections": {
+    "general": "General",
+    "notifications": "Notificaciones",
+    "privacy": "Privacidad",
+    "about": "Acerca de"
+  },
+  "options": {
+    "language": "Idioma",
+    "theme": "Tema",
+    "notifications": "Activar Notificaciones"
+  }
 }

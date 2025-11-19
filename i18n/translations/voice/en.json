@@ -1,0 +1,15 @@
+{
+  "errors": {
+    "title": "Voice Error",
+    "notUnderstood": "I didn't understand what you said. Please try again.",
+    "recognitionError": "Recognition error. Restarting...",
+    "startError": "Error starting recognition",
+    "unknown": "Unknown error"
+  },
+  "buttons": {
+    "registerEvent": "Register Event"
+  },
+  "messages": {
+    "savedOffline": "Your new voice event was locally saved.\nWith an internet connection, you will be prompted to upload it."
+  }
+}

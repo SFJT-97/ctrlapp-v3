@@ -1,5 +1,59 @@
 {
-  "error": "An error occurred",
-  "loading": "Loading...",
-  "logout": "Log out"
+  "errors": {
+    "error": "An error occurred",
+    "generic": "An unexpected error occurred",
+    "network": "Network error. Please check your connection",
+    "load": "Failed to load data. Please try again",
+    "save": "Failed to save. Please try again",
+    "validation": "Please check the provided information",
+    "unknown": "An unexpected error occurred",
+    "retry": "Please try again"
+  },
+  "success": {
+    "save": "Saved successfully",
+    "update": "Updated successfully",
+    "delete": "Deleted successfully"
+  },
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "retry": "Retry",
+    "logout": "Log out",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm"
+  },
+  "labels": {
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "company": "Company",
+    "description": "Description",
+    "date": "Date",
+    "time": "Time"
+  },
+  "placeholders": {
+    "search": "Search...",
+    "enterText": "Enter text...",
+    "selectOption": "Select option..."
+  },
+  "navigation": {
+    "home": "Home",
+    "profile": "Profile",
+    "settings": "Settings",
+    "chat": "Chat",
+    "report": "Report"
+  },
+  "general": {
+    "loading": "Loading...",
+    "noData": "No data available",
+    "select": "Select",
+    "all": "All",
+    "none": "None"
+  }
 }

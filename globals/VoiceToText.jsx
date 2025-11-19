@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { Alert, View, ScrollView } from 'react-native'
 import Voice from '@react-native-voice/voice'
 import { IconButton, TextInput, useTheme, Button } from 'react-native-paper'
+import { useTranslation } from 'react-i18next'
 import TimerCircle from '../app/(drawer)/report/Components/newEvents/TimerCircle'
 import ImageVideo from '../app/(drawer)/report/Components/newEvents/ImageVideo'
 import CameraComponent from '../app/(drawer)/report/Components/newEvents/CameraComponent'
@@ -18,6 +19,7 @@ const PENDING_UPLOADS_KEY = 'PendingTickets-' + Date.now().toString()
 const LANG_CODE = 'es-US'
 
 export default function VoiceToText () {
+  const { t } = useTranslation('voice')
   const [text, setText] = useState('')
   const [isListening, setIsListening] = useState(false)
   const isActiveRef = useRef(false) // usamos una referencia para tener acceso en cualquier callback
@@ -65,17 +67,17 @@ export default function VoiceToText () {
 
       if (code === '12') {
         // No entendió nada, pero no es grave
-        Alert.alert('No se entendió lo que dijiste. Intentá de nuevo.')
+        Alert.alert(t('errors.notUnderstood'))
       } else if (code === '5') {
         // Error cliente: reiniciamos la escucha
-        Alert.alert('Error en el reconocimiento. Reiniciando...')
+        Alert.alert(t('errors.recognitionError'))
         Voice.destroy().then(() => {
           setTimeout(() => {
             Voice.start(LANG_CODE)
           }, 500) // Pausa breve antes de reiniciar
         })
       } else {
-        Alert.alert('Error de voz', `${code}: ${message}`)
+        Alert.alert(t('errors.title'), `${code}: ${message}`)
       }
     }
 
@@ -94,7 +96,7 @@ export default function VoiceToText () {
       await Voice.start(LANG_CODE)
     } catch (e) {
       console.error(e)
-      Alert.alert('Error al iniciar reconocimiento', e.message || 'Error desconocido')
+      Alert.alert(t('errors.startError'), e.message || t('errors.unknown'))
     }
   }
 
@@ -168,7 +170,7 @@ export default function VoiceToText () {
     }
     // Acá vamos a agregar {fromVoiceOffLine: true}, después en el "watchNewTickets" servirá para saber como subirlo
     await savePendingTicket({ data: ticketData, files: mediaPaths, fromVoiceOffLine: true })
-    Alert.alert('Your new voice event was locally saved.\nWith an internet connection, you will be prompted to upload it.')
+    Alert.alert(t('errors.title'), t('messages.savedOffline'))
     router.navigate({ pathname: 'report' })
     setLoad(false)
   }
@@ -238,7 +240,7 @@ export default function VoiceToText () {
               />
               )}
           <Button compact style={{ padding: 5, marginTop: 30, backgroundColor: theme.colors.primary }} mode='contained' onPress={handleSubmit}>
-            Register Event
+            {t('buttons.registerEvent')}
           </Button>
         </ScrollView>
       )}

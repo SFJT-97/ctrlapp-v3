@@ -17,6 +17,7 @@ import CustomActivityIndicator from '../../../globals/components/CustomActivityI
 import LockOrientation from '../../../globals/LockOrientation'
 import { REGISTERED_ICON } from '../../../globals/variables/globalVariables'
 import { DataContextType } from '../../../types'
+import { useTranslation } from 'react-i18next'
 
 const gqlLoginM = gql`
   mutation Login($userName: String!, $password: String!, $userPlatform: String!, $tokenDevice: String) {
@@ -95,6 +96,7 @@ const FormikInputValue: React.FC<FormikInputValueProps> = ({ name, ...props }) =
 
 export default function LoginScreen(): React.JSX.Element {
   // FIXED: Call all hooks first before any conditional returns
+  const { t } = useTranslation('auth')
   const [waiting, setWaiting] = useState<boolean>(false)
   const [login, { error: loginError }] = useMutation(gqlLoginM, {
     fetchPolicy: 'network-only'
@@ -139,9 +141,9 @@ export default function LoginScreen(): React.JSX.Element {
   useEffect(() => {
     if (loginError) {
       console.error('Login mutation error:', loginError)
-      Alert.alert('Error', loginError.message || 'Login failed')
+      Alert.alert(t('errors.error'), loginError.message || t('errors.loginFailed'))
     }
-  }, [loginError])
+  }, [loginError, t])
 
   // FIXED: Now check context and early return AFTER all hooks
   if (!context || !setData) {
@@ -167,8 +169,8 @@ export default function LoginScreen(): React.JSX.Element {
     
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Biometric Authentication',
-        fallbackLabel: 'Use Password'
+        promptMessage: t('biometric.promptMessage'),
+        fallbackLabel: t('biometric.fallbackLabel')
       })
       if (result.success) {
         const token = await AsyncStorage.getItem('token')
@@ -180,13 +182,13 @@ export default function LoginScreen(): React.JSX.Element {
             idDevice: tokenDevice || ''
           }))
         } else {
-          Alert.alert('Error', 'Please log in with username and password first')
+          Alert.alert(t('errors.error'), t('errors.biometricNotAvailable'))
         }
       } else {
-        Alert.alert('Error', 'Biometric authentication failed')
+        Alert.alert(t('errors.error'), t('errors.biometricFailed'))
       }
     } catch (error) {
-      Alert.alert('Error', 'Biometric authentication failed')
+      Alert.alert(t('errors.error'), t('errors.biometricFailed'))
       console.error('Biometric error:', error)
     }
   }
@@ -234,7 +236,7 @@ export default function LoginScreen(): React.JSX.Element {
                 })
                 const token = response.data?.login?.value
                 if (!token) {
-                  throw new Error('No token received from server')
+                  throw new Error(t('errors.noToken'))
                 }
                 await AsyncStorage.setItem('token', token)
                 
@@ -253,7 +255,7 @@ export default function LoginScreen(): React.JSX.Element {
                 setWaiting(false)
               } catch (error) {
                 console.error('Login error:', error)
-                Alert.alert('Error', error instanceof Error ? error.message : 'Login failed')
+                Alert.alert(t('errors.error'), error instanceof Error ? error.message : t('errors.loginFailed'))
                 setWaiting(false)
               }
             }}
@@ -266,13 +268,13 @@ export default function LoginScreen(): React.JSX.Element {
                   style={styles.logo}
                 />
                 <Text style={styles.title}>
-                  CONTROL ACCIóN
+                  {t('login.title')}
                 </Text>
                 <View style={styles.formContainer}>
-                  <FormikInputValue name='nickName' placeholder='User / email' autoCapitalize='none' />
-                  <FormikInputValue name='password' placeholder='Password' secureTextEntry autoCapitalize='none' />
+                  <FormikInputValue name='nickName' placeholder={t('login.placeholders.username')} autoCapitalize='none' />
+                  <FormikInputValue name='password' placeholder={t('login.placeholders.password')} secureTextEntry autoCapitalize='none' />
                   <Button mode='contained' onPress={handleSubmit} style={styles.loginButton}>
-                    Login
+                    {t('login.buttons.login')}
                   </Button>
                   {isBiometricSupported && (
                     <Button
@@ -281,7 +283,7 @@ export default function LoginScreen(): React.JSX.Element {
                       icon='fingerprint'
                       style={styles.biometricButton}
                     >
-                      Use fingerprint
+                      {t('login.buttons.biometric')}
                     </Button>
                   )}
                 </View>

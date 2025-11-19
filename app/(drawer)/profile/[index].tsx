@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { ScrollView, View, TouchableOpacity, Alert, ImageBackground, RefreshControl } from 'react-native'
-import { useTheme, TextInput, Icon, IconButton, Button } from 'react-native-paper'
+import React, { useEffect, useState, useCallback, useContext } from 'react'
+import { ScrollView, View, TouchableOpacity, Alert, ImageBackground, RefreshControl, StyleSheet } from 'react-native'
+import { useTheme, TextInput, Icon, IconButton, Button, Card, Text, Divider, Surface } from 'react-native-paper'
 import { useRouter, Stack } from 'expo-router'
 import { gql, useLazyQuery, useMutation, useApolloClient } from '@apollo/client'
+import { useTranslation } from 'react-i18next'
 
 // Custom modules
 import { useMe } from '../../../context/hooks/userQH'
@@ -14,6 +15,7 @@ import uploadFile from '../../../globals/uploadFile'
 import { getImageUrl } from '../../../globals/functions/imageUtils'
 import { API_URL, DEFAULT_IMAGE } from '../../../globals/variables/globalVariables'
 import { User, UserConfiguration } from '../../../types'
+import { ThemeContext } from '../../../globals/styles/ThemeContext'
 
 // GraphQL Queries and Mutations
 const getFileQ = gql`
@@ -250,7 +252,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
   }
 
   return (
-    <View style={{ alignItems: 'center', marginVertical: 20 }}>
+    <View style={styles.profileImageContainer}>
       <TouchableOpacity
         onPress={() => handleTakePicture(setIsTakingPhoto, isTakingPhoto, setNewPhoto)}
         onLongPress={() => {
@@ -263,37 +265,26 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           )
           setNewPhoto(true)
         }}
-        style={{ position: 'relative' }}
+        style={styles.profileImageWrapper}
       >
         <ImageBackground
           source={{ uri: userProfileImage }}
-          style={{
-            width: 120,
-            height: 120,
-            borderRadius: 60,
-            overflow: 'hidden',
-            borderWidth: 2,
-            borderColor: theme.colors.primary
-          }}
-          imageStyle={{ borderRadius: 60 }}
+          style={[
+            styles.profileImage,
+            { borderColor: theme.colors.primary }
+          ]}
+          imageStyle={styles.profileImageStyle}
         >
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              backgroundColor: theme.colors.background,
-              borderRadius: 20
-            }}
-          >
+          <Surface style={styles.cameraButtonContainer}>
             <IconButton
               mode='contained'
               icon='camera-plus-outline'
-              size={26}
-              iconColor={theme.colors.onBackground}
+              size={24}
+              iconColor={theme.colors.onPrimary}
+              style={styles.cameraButton}
               loading={!loaded}
             />
-          </View>
+          </Surface>
         </ImageBackground>
       </TouchableOpacity>
     </View>
@@ -304,6 +295,15 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
 export default function ProfileScreen(): React.JSX.Element {
   const theme = useTheme()
   const router = useRouter()
+  const { t: tCommon } = useTranslation()
+  const { t, i18n } = useTranslation('profile')
+  
+  // Theme context
+  const themeContext = useContext(ThemeContext)
+  if (!themeContext) {
+    throw new Error('ProfileScreen must be used within ThemeProviderCustom')
+  }
+  const { toggleTheme, currentTheme } = themeContext
   
   // FIXED: Use proper hook return structure
   const { me, loading: meLoading, error: meError } = useMe()
@@ -337,6 +337,9 @@ export default function ProfileScreen(): React.JSX.Element {
     fetchPolicy: 'network-only'
   })
   const [editUserConfiguration] = useMutation(editUserConfigurationM, {
+    fetchPolicy: 'network-only'
+  })
+  const [updateUserConfig] = useMutation(editUserConfigurationM, {
     fetchPolicy: 'network-only'
   })
   const [singleUploadS3] = useMutation(singleUploadS3M, {
@@ -374,7 +377,7 @@ export default function ProfileScreen(): React.JSX.Element {
   useEffect(() => {
     if (meLoading || !me || meError) {
       if (meError) {
-        Alert.alert('Error', 'Failed to load user data. Please try again.')
+        Alert.alert(t('alerts.error'), t('alerts.loadError'))
       }
       return
     }
@@ -408,13 +411,13 @@ export default function ProfileScreen(): React.JSX.Element {
         setNewUserConfig(!configData?.data?.userConfigurationByIdEmployee)
       } catch (error) {
         console.error('Error fetching user data:', error)
-        Alert.alert('Error', 'Failed to load user data. Please try again.')
+        Alert.alert(t('alerts.error'), t('alerts.loadError'))
         setLoaded(true) // Still show UI even on error
       }
     }
 
     fetchUserData()
-  }, [me?.idUser, me?.userProfileImage, meLoading, meError, getURL, getUsrConfigData])
+  }, [me?.idUser, me?.userProfileImage, meLoading, meError, getURL, getUsrConfigData, t])
 
   // FIXED: Separate effect for config data
   useEffect(() => {
@@ -427,17 +430,45 @@ export default function ProfileScreen(): React.JSX.Element {
     setPhone(myConfig.personalPhone || '')
   }, [myConfig, configLoading, configError])
 
+  // Handle language change
+  const handleLanguageChange = useCallback((lang: 'en' | 'es') => {
+    i18n.changeLanguage(lang)
+  }, [i18n])
+
+  // Handle theme change
+  const handleThemeChange = useCallback(async (newTheme: 'light' | 'dark') => {
+    if (newTheme === currentTheme) return
+    
+    if (configLoading || !myConfig?.idUserConfiguration) {
+      console.error('User configuration not loaded')
+      return
+    }
+
+    try {
+      await updateUserConfig({
+        variables: {
+          idUserConfiguration: myConfig.idUserConfiguration,
+          theme: newTheme
+        }
+      })
+      await toggleTheme()
+    } catch (error) {
+      console.error('Failed to update theme:', error)
+      Alert.alert(t('alerts.error'), t('alerts.themeUpdateError'))
+    }
+  }, [currentTheme, myConfig, configLoading, toggleTheme, updateUserConfig])
+
   // FIXED: Handle saving user configuration with proper validation
   const handleSaveUserConfig = useCallback(async (): Promise<void> => {
     // Validate me exists
     if (!me || !me.idUser) {
-      Alert.alert('Error', 'User data not loaded. Please refresh the page.')
+      Alert.alert(t('alerts.error'), t('alerts.userDataNotLoaded'))
       return
     }
 
     // Validate form data
     if (!checkData()) {
-      Alert.alert('Validation Error', 'Please check the provided information.')
+      Alert.alert(t('alerts.validationError'), t('alerts.validationMessage'))
       return
     }
 
@@ -451,7 +482,7 @@ export default function ProfileScreen(): React.JSX.Element {
         })
 
         if (!result?.data?.singleUploadS3?.location) {
-          throw new Error('Failed to upload image')
+          throw new Error(t('errors.imageUploadFailed'))
         }
 
         location = result.data.singleUploadS3.location
@@ -466,7 +497,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
       const variables = {
         userProfileImage: location,
-        theme: myConfig?.theme || 'light',
+        theme: currentTheme,
         showNotificationsToLevel: 1,
         personalPhone: phone,
         personalEmail: email,
@@ -500,7 +531,7 @@ export default function ProfileScreen(): React.JSX.Element {
         })
       } else {
         if (!myConfig?.idUserConfiguration) {
-          throw new Error('User configuration ID not found')
+          throw new Error(t('errors.configNotFound'))
         }
 
         await editUserConfiguration({
@@ -511,13 +542,13 @@ export default function ProfileScreen(): React.JSX.Element {
         })
       }
 
-      Alert.alert('Success', 'Profile updated successfully.')
+      Alert.alert(t('alerts.success'), t('alerts.updateSuccess'))
       setNewPhoto(false)
     } catch (error) {
       console.error('Error saving user config:', error)
       Alert.alert(
-        'Error',
-        error instanceof Error ? error.message : 'Failed to save profile. Please try again.'
+        t('alerts.error'),
+        error instanceof Error ? error.message : t('alerts.saveError')
       )
     } finally {
       setSaving(false)
@@ -532,31 +563,15 @@ export default function ProfileScreen(): React.JSX.Element {
     email,
     address,
     newUserConfig,
+    currentTheme,
     singleUploadS3,
     editUser,
     addNewUserConfiguration,
-    editUserConfiguration
+    editUserConfiguration,
+    t
   ])
 
-  // Show loading state
-  if (meLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <CustomActivityIndicator />
-      </View>
-    )
-  }
-
-  // Show error state
-  if (meError || !me) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <TextInput.Icon icon='alert-circle-outline' />
-        <Button onPress={() => router.refresh()}>Retry</Button>
-      </View>
-    )
-  }
-
+  // FIXED: Move onRefresh hook before early returns to maintain hook order
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
@@ -575,9 +590,33 @@ export default function ProfileScreen(): React.JSX.Element {
     }
   }, [client, me?.idEmployee, getUsrConfigData])
 
+  // Show loading state
+  if (meLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <CustomActivityIndicator />
+      </View>
+    )
+  }
+
+  // Show error state
+  if (meError || !me) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Icon source='alert-circle-outline' size={48} color={theme.colors.error} />
+        <Text variant="titleMedium" style={{ marginTop: 16, marginBottom: 8 }}>
+          {t('errors.loadFailed')}
+        </Text>
+        <Button mode="contained" onPress={() => router.refresh()} style={{ marginTop: 8 }}>
+          {tCommon('buttons.retry')}
+        </Button>
+      </View>
+    )
+  }
+
   return (
     <ScrollView 
-      contentContainerStyle={{ paddingBottom: 20 }}
+      contentContainerStyle={styles.scrollContent}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -589,7 +628,7 @@ export default function ProfileScreen(): React.JSX.Element {
     >
       <Stack.Screen
         options={{
-          title: 'Profile',
+          title: t('title'),
           headerShown: true,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.navigate('/home/')}>
@@ -599,80 +638,298 @@ export default function ProfileScreen(): React.JSX.Element {
         }}
       />
 
-      <View style={{ marginVertical: 20, alignItems: 'center' }}>
-        <ProfileImage
-          userProfileImage={userProfileImage}
-          isTakingPhoto={isTakingPhoto}
-          setIsTakingPhoto={setIsTakingPhoto}
-          setUserProfileImage={setUserProfileImage}
-          loaded={loaded}
-          setNewPhoto={setNewPhoto}
-          newPhoto={newPhoto}
-          handleTakePicture={handleTakePicture}
-        />
+      <View style={styles.container}>
+        {/* Profile Image Section */}
+        <Card style={[styles.card, styles.profileCard]} mode="elevated">
+          <Card.Content style={styles.profileCardContent}>
+            <ProfileImage
+              userProfileImage={userProfileImage}
+              isTakingPhoto={isTakingPhoto}
+              setIsTakingPhoto={setIsTakingPhoto}
+              setUserProfileImage={setUserProfileImage}
+              loaded={loaded}
+              setNewPhoto={setNewPhoto}
+              newPhoto={newPhoto}
+              handleTakePicture={handleTakePicture}
+            />
+            {name && (
+              <Text variant="headlineSmall" style={styles.profileName}>
+                {name}
+              </Text>
+            )}
+            {company && (
+              <Text variant="bodyMedium" style={[styles.profileCompany, { color: theme.colors.onSurfaceVariant }]}>
+                {company}
+              </Text>
+            )}
+          </Card.Content>
+        </Card>
 
-        <View style={{ alignItems: 'center', rowGap: 15, width: '80%' }}>
-          <TextInput
-            style={{ height: 56, width: '100%' }}
-            mode='flat'
-            label='Name'
-            value={name}
-            onChangeText={setName}
-            disabled
-            left={<TextInput.Icon icon='account-outline' />}
-          />
-          <TextInput
-            style={{ height: 56, width: '100%' }}
-            mode='flat'
-            label='Company'
-            value={company}
-            onChangeText={setCompany}
-            disabled
-            left={<TextInput.Icon icon='office-building-outline' />}
-          />
-          <TextInput
-            style={{ height: 56, width: '100%' }}
-            mode='outlined'
-            label='Email'
-            value={email}
-            onChangeText={setEmail}
-            keyboardType='email-address'
-            left={<TextInput.Icon icon='email-outline' />}
-          />
-          <TextInput
-            style={{ height: 56, width: '100%' }}
-            mode='outlined'
-            label='Phone'
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType='phone-pad'
-            left={<TextInput.Icon icon='phone-outline' />}
-          />
-          <TextInput
-            style={{ height: 56, width: '100%' }}
-            mode='outlined'
-            label='Address'
-            value={address}
-            onChangeText={setAddress}
-            left={<TextInput.Icon icon='home-outline' />}
-          />
-        </View>
+        {/* Personal Information Section */}
+        <Card style={styles.card} mode="elevated">
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              {t('sections.personalInfo')}
+            </Text>
+            <Divider style={styles.divider} />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                mode='outlined'
+                label={t('labels.name')}
+                value={name}
+                onChangeText={setName}
+                disabled
+                left={<TextInput.Icon icon='account-outline' />}
+              />
+              <TextInput
+                style={styles.input}
+                mode='outlined'
+                label={t('labels.company')}
+                value={company}
+                onChangeText={setCompany}
+                disabled
+                left={<TextInput.Icon icon='office-building-outline' />}
+              />
+            </View>
+          </Card.Content>
+        </Card>
 
-        <View style={{ marginTop: 30, alignItems: 'center' }}>
+        {/* Contact Information Section */}
+        <Card style={styles.card} mode="elevated">
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              {t('sections.contactInfo')}
+            </Text>
+            <Divider style={styles.divider} />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                mode='outlined'
+                label={t('labels.email')}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType='email-address'
+                left={<TextInput.Icon icon='email-outline' />}
+              />
+              <TextInput
+                style={styles.input}
+                mode='outlined'
+                label={t('labels.phone')}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType='phone-pad'
+                left={<TextInput.Icon icon='phone-outline' />}
+              />
+              <TextInput
+                style={styles.input}
+                mode='outlined'
+                label={t('labels.address')}
+                value={address}
+                onChangeText={setAddress}
+                left={<TextInput.Icon icon='home-outline' />}
+              />
+            </View>
+          </Card.Content>
+        </Card>
+
+        {/* Preferences Section */}
+        <Card style={styles.card} mode="elevated">
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              {t('sections.preferences')}
+            </Text>
+            <Divider style={styles.divider} />
+            
+            {/* Language Selector */}
+            <View style={styles.preferenceRow}>
+              <View style={styles.preferenceLabel}>
+                <Icon source="translate" size={24} color={theme.colors.primary} />
+                <Text variant="bodyLarge" style={styles.preferenceText}>
+                  {t('preferences.language')}
+                </Text>
+              </View>
+              <View style={styles.buttonGroup}>
+                <Button
+                  mode={i18n.language === 'en' ? 'contained' : 'outlined'}
+                  onPress={() => handleLanguageChange('en')}
+                  style={styles.languageButton}
+                  compact
+                >
+                  EN
+                </Button>
+                <Button
+                  mode={i18n.language === 'es' ? 'contained' : 'outlined'}
+                  onPress={() => handleLanguageChange('es')}
+                  style={styles.languageButton}
+                  compact
+                >
+                  ES
+                </Button>
+              </View>
+            </View>
+
+            <Divider style={styles.preferenceDivider} />
+
+            {/* Theme Selector */}
+            <View style={styles.preferenceRow}>
+              <View style={styles.preferenceLabel}>
+                <Icon 
+                  source={currentTheme === 'dark' ? 'weather-night' : 'weather-sunny'} 
+                  size={24} 
+                  color={theme.colors.primary} 
+                />
+                <Text variant="bodyLarge" style={styles.preferenceText}>
+                  {t('preferences.theme')}
+                </Text>
+              </View>
+              <View style={styles.buttonGroup}>
+                <Button
+                  mode={currentTheme === 'light' ? 'contained' : 'outlined'}
+                  onPress={() => handleThemeChange('light')}
+                  style={styles.themeButton}
+                  icon="weather-sunny"
+                  compact
+                >
+                  {t('preferences.themeOptions.light')}
+                </Button>
+                <Button
+                  mode={currentTheme === 'dark' ? 'contained' : 'outlined'}
+                  onPress={() => handleThemeChange('dark')}
+                  style={styles.themeButton}
+                  icon="weather-night"
+                  compact
+                >
+                  {t('preferences.themeOptions.dark')}
+                </Button>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+
+        {/* Save Button */}
+        <View style={styles.saveButtonContainer}>
           <Button
             mode='contained'
-            buttonColor='green'
-            style={{ width: 175 }}
             onPress={handleSaveUserConfig}
             disabled={saving}
             loading={saving}
+            style={styles.saveButton}
+            contentStyle={styles.saveButtonContent}
+            icon="content-save"
           >
-            Save
+            {t('buttons.save')}
           </Button>
-          {saving && <CustomActivityIndicator />}
         </View>
       </View>
     </ScrollView>
   )
 }
+
+// Styles
+const styles = StyleSheet.create({
+  scrollContent: {
+    paddingBottom: 20,
+    paddingHorizontal: 16
+  },
+  container: {
+    paddingVertical: 16
+  },
+  card: {
+    marginBottom: 16,
+    borderRadius: 12
+  },
+  profileCard: {
+    marginBottom: 24
+  },
+  profileCardContent: {
+    alignItems: 'center',
+    paddingVertical: 24
+  },
+  profileImageContainer: {
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  profileImageWrapper: {
+    position: 'relative'
+  },
+  profileImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    overflow: 'hidden',
+    borderWidth: 3
+  },
+  profileImageStyle: {
+    borderRadius: 70
+  },
+  cameraButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    borderRadius: 20,
+    elevation: 4
+  },
+  cameraButton: {
+    margin: 0
+  },
+  profileName: {
+    marginTop: 16,
+    fontWeight: '600'
+  },
+  profileCompany: {
+    marginTop: 4
+  },
+  sectionTitle: {
+    marginBottom: 8,
+    fontWeight: '600'
+  },
+  divider: {
+    marginVertical: 12
+  },
+  inputContainer: {
+    gap: 16
+  },
+  input: {
+    height: 56
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8
+  },
+  preferenceLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1
+  },
+  preferenceText: {
+    fontWeight: '500'
+  },
+  preferenceDivider: {
+    marginVertical: 8
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  languageButton: {
+    minWidth: 60
+  },
+  themeButton: {
+    minWidth: 80
+  },
+  saveButtonContainer: {
+    marginTop: 8,
+    marginBottom: 24
+  },
+  saveButton: {
+    borderRadius: 8
+  },
+  saveButtonContent: {
+    paddingVertical: 6
+  }
+})
 

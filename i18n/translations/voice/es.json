@@ -1,0 +1,15 @@
+{
+  "errors": {
+    "title": "Error de Voz",
+    "notUnderstood": "No se entendió lo que dijiste. Intentá de nuevo.",
+    "recognitionError": "Error en el reconocimiento. Reiniciando...",
+    "startError": "Error al iniciar reconocimiento",
+    "unknown": "Error desconocido"
+  },
+  "buttons": {
+    "registerEvent": "Registrar Evento"
+  },
+  "messages": {
+    "savedOffline": "Tu nuevo evento de voz fue guardado localmente.\nCon conexión a internet, se te pedirá subirlo."
+  }
+}

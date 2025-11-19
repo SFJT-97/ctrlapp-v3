@@ -1,5 +1,59 @@
 {
-  "error": "Ocurrió un error",
-  "loading": "Cargando...",
-  "logout": "Cerrar sesión"
+  "errors": {
+    "error": "Ocurrió un error",
+    "generic": "Ocurrió un error inesperado",
+    "network": "Error de red. Por favor verifica tu conexión",
+    "load": "Error al cargar los datos. Por favor intenta de nuevo",
+    "save": "Error al guardar. Por favor intenta de nuevo",
+    "validation": "Por favor verifica la información proporcionada",
+    "unknown": "Ocurrió un error inesperado",
+    "retry": "Por favor intenta de nuevo"
+  },
+  "success": {
+    "save": "Guardado exitosamente",
+    "update": "Actualizado exitosamente",
+    "delete": "Eliminado exitosamente"
+  },
+  "buttons": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "retry": "Reintentar",
+    "logout": "Cerrar sesión",
+    "submit": "Enviar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "confirm": "Confirmar"
+  },
+  "labels": {
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "address": "Dirección",
+    "company": "Empresa",
+    "description": "Descripción",
+    "date": "Fecha",
+    "time": "Hora"
+  },
+  "placeholders": {
+    "search": "Buscar...",
+    "enterText": "Ingresa texto...",
+    "selectOption": "Selecciona una opción..."
+  },
+  "navigation": {
+    "home": "Inicio",
+    "profile": "Perfil",
+    "settings": "Configuración",
+    "chat": "Chat",
+    "report": "Reporte"
+  },
+  "general": {
+    "loading": "Cargando...",
+    "noData": "No hay datos disponibles",
+    "select": "Seleccionar",
+    "all": "Todos",
+    "none": "Ninguno"
+  }
 }

@@ -670,7 +670,7 @@ export default function ChatPage(): React.JSX.Element {
         options={{
           title: 'Chat',
           headerShown: true,
-          headerLeft: () => <DrawerToggleButton />
+          headerLeft: () => <DrawerToggleButton tintColor={theme.colors.primary} />
         }}
       />
       <LockOrientation orientation={ScreenOrientation.OrientationLock.PORTRAIT_UP} />

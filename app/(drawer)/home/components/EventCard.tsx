@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { View, TouchableOpacity, ImageBackground, ActivityIndicator } from 'react-native'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { View, TouchableOpacity, ImageBackground, ActivityIndicator, Dimensions, StyleSheet } from 'react-native'
 import { Card, useTheme, Divider } from 'react-native-paper'
 import { useRouter } from 'expo-router'
 import { gql, useMutation, useQuery } from '@apollo/client'
+import Carousel from 'react-native-reanimated-carousel'
 
 import EventCardHeader from './EventCardHeader'
 import EventCardFooter from './EventCardFooter'
@@ -51,19 +52,22 @@ interface EventCardProps {
 
 const DEFAULT_PLACEHOLDER = DEFAULT_IMAGE
 
-const colors = {
-  risk: {
-    0: '#FF0000',
-    1: '#FFA500',
-    2: '#008000',
-    null: '#808080'
-  },
-  solution: {
-    0: '#FF0000',
-    1: '#FFA500',
-    2: '#008000',
-    null: '#808080'
-  }
+// Red scale for risk qualification (danger levels)
+const riskColors = {
+  0: '#8B0000', // Dark red - Catastrophic/Extremely Dangerous/Very Dangerous
+  1: '#DC143C', // Crimson - Dangerous/Very Serious
+  2: '#FF6347', // Tomato - Serious/Warning
+  3: '#FFA07A', // Light salmon - Low warning/Inconsequential/Secure Event
+  null: '#FFE4E1' // Misty rose - default/unknown
+}
+
+// Yellow scale for solution type (action levels)
+const solutionColors = {
+  0: '#FFFF99', // Light yellow - Resolved
+  1: '#FFD700', // Gold - Pending action
+  2: '#FFA500', // Orange - Partial action
+  3: '#FF8C00', // Dark orange - Immediate action
+  null: '#FFE4B5' // Moccasin - default/unknown
 }
 
 const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
@@ -72,10 +76,14 @@ const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
   const [getURL] = useMutation(getSignedUrlFromCacheQ)
   const [loaded, setLoaded] = useState(false)
   const [imageKeys, setImageKeys] = useState<string[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const carouselRef = useRef(null)
 
   const eventData = item.result || {}
   const riskData = item.risk || {}
   const idTicketNew = eventData.idTicketNew
+  const screenWidth = Dimensions.get('window').width
+  const carouselWidth = screenWidth - 24 // Account for card margins (12px each side)
 
   // Fetch comment count
   const { data: commentsData } = useQuery(allCommentsFromTicketNewQ, {
@@ -127,21 +135,66 @@ const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
     randomPlaceholder
   ])
 
+  const topBorderRadius = 16
+  const carouselHeight = 400
+
+  const handleIndexChange = useCallback((index: number) => {
+    setCurrentIndex(index)
+  }, [])
+
+  const renderCarouselItem = useCallback(({ item: imageUri, index }: { item: string; index: number }) => {
+    const totalImages = imageKeys.length
+    const isFirst = index === 0
+    const isLast = index === totalImages - 1
+    
+    return (
+      <ImageBackground
+        imageStyle={{
+          borderTopLeftRadius: isFirst ? topBorderRadius : 0,
+          borderTopRightRadius: isLast ? topBorderRadius : 0
+        }}
+        style={{ width: carouselWidth, height: carouselHeight }}
+        source={{ uri: imageUri }}
+        resizeMode='cover'
+      />
+    )
+  }, [carouselWidth, carouselHeight, imageKeys])
+
+  const renderPaginationDots = useCallback(() => {
+    if (imageKeys.length <= 1) return null
+
+    return (
+      <View style={styles.paginationContainer}>
+        {imageKeys.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.paginationDot,
+              {
+                backgroundColor: index === currentIndex
+                  ? theme.colors.primary
+                  : theme.colors.surfaceVariant
+              }
+            ]}
+          />
+        ))}
+      </View>
+    )
+  }, [imageKeys.length, currentIndex, theme.colors.primary, theme.colors.surfaceVariant])
+
   const renderImages = useCallback(() => {
     if (!loaded) {
       return (
-        <View style={{ height: 300, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ height: carouselHeight, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size='large' color={theme.colors.primary} />
         </View>
       )
     }
 
-    // FIXED: Match image border radius to card (top corners only)
-    const topBorderRadius = 16
-
+    // No images or only placeholder
     if (imageKeys.length === 0 || (imageKeys.length === 1 && imageKeys[0] === randomPlaceholder)) {
       return (
-        <View style={{ width: '100%', height: 300 }}>
+        <View style={{ width: '100%', height: carouselHeight }}>
           <ImageBackground
             imageStyle={{ borderTopLeftRadius: topBorderRadius, borderTopRightRadius: topBorderRadius }}
             style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
@@ -150,9 +203,12 @@ const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
           />
         </View>
       )
-    } else if (imageKeys.length === 1) {
+    }
+
+    // Single image - no carousel needed
+    if (imageKeys.length === 1) {
       return (
-        <View style={{ width: '100%', height: 400 }}>
+        <View style={{ width: '100%', height: carouselHeight, position: 'relative' }}>
           <ImageBackground
             imageStyle={{ borderTopLeftRadius: topBorderRadius, borderTopRightRadius: topBorderRadius }}
             style={{ width: '100%', height: '100%' }}
@@ -161,50 +217,25 @@ const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
           />
         </View>
       )
-    } else if (imageKeys.length === 2) {
-      return (
-        <View style={{ flexDirection: 'row', width: '100%', height: 300 }}>
-          <ImageBackground
-            imageStyle={{ borderTopLeftRadius: topBorderRadius }}
-            style={{ flex: 1, height: '100%' }}
-            source={{ uri: imageKeys[0] }}
-            resizeMode='cover'
-          />
-          <ImageBackground
-            imageStyle={{ borderTopRightRadius: topBorderRadius }}
-            style={{ flex: 1, height: '100%' }}
-            source={{ uri: imageKeys[1] }}
-            resizeMode='cover'
-          />
-        </View>
-      )
-    } else {
-      return (
-        <View style={{ flexDirection: 'row', width: '100%', height: 300 }}>
-          <ImageBackground
-            imageStyle={{ borderTopLeftRadius: topBorderRadius }}
-            style={{ flex: 2, height: '100%' }}
-            source={{ uri: imageKeys[0] }}
-            resizeMode='cover'
-          />
-          <View style={{ flex: 1 }}>
-            <ImageBackground
-              imageStyle={{ borderTopRightRadius: topBorderRadius }}
-              style={{ flex: 1, height: '50%' }}
-              source={{ uri: imageKeys[1] }}
-              resizeMode='cover'
-            />
-            <ImageBackground
-              imageStyle={{}}
-              style={{ flex: 1, height: '50%' }}
-              source={{ uri: imageKeys[2] }}
-              resizeMode='cover'
-            />
-          </View>
-        </View>
-      )
     }
-  }, [imageKeys, loaded, randomPlaceholder, theme.colors.primary])
+
+    // Multiple images - use carousel
+    return (
+      <View style={{ width: '100%', height: carouselHeight, position: 'relative' }}>
+        <Carousel
+          ref={carouselRef}
+          loop={false}
+          width={carouselWidth}
+          height={carouselHeight}
+          data={imageKeys}
+          scrollAnimationDuration={300}
+          onSnapToItem={handleIndexChange}
+          renderItem={renderCarouselItem}
+        />
+        {renderPaginationDots()}
+      </View>
+    )
+  }, [imageKeys, loaded, randomPlaceholder, theme.colors.primary, carouselWidth, carouselHeight, handleIndexChange, renderCarouselItem, renderPaginationDots])
 
   const handleCardPress = (): void => {
     if (onPress) {
@@ -217,13 +248,32 @@ const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
     }
   }
 
-  const riskColor = riskData.RiskDot !== null && riskData.RiskDot !== undefined
-    ? colors.risk[riskData.RiskDot as keyof typeof colors.risk] || colors.risk.null
-    : undefined
+  // Red scale for risk qualification
+  const riskColorMap = {
+    0: '#8B0000', // Dark red - Catastrophic/Extremely Dangerous/Very Dangerous
+    1: '#DC143C', // Crimson - Dangerous/Very Serious
+    2: '#FF6347', // Tomato - Serious/Warning
+    3: '#FFA07A', // Light salmon - Low warning/Inconsequential/Secure Event
+    null: '#FFE4E1' // Misty rose - default/unknown
+  }
 
-  const solutionColor = riskData.SolutionDot !== null && riskData.SolutionDot !== undefined
-    ? colors.solution[riskData.SolutionDot as keyof typeof colors.solution] || colors.solution.null
-    : undefined
+  // Yellow scale for solution type
+  const solutionColorMap = {
+    0: '#FFFF99', // Light yellow - Resolved
+    1: '#FFD700', // Gold - Pending action
+    2: '#FFA500', // Orange - Partial action
+    3: '#FF8C00', // Dark orange - Immediate action
+    null: '#FFE4B5' // Moccasin - default/unknown
+  }
+
+  // Use riskColor/solutionColor from riskData if available, otherwise calculate from RiskDot/SolutionDot
+  const riskColor = riskData.riskColor || (riskData.RiskDot !== null && riskData.RiskDot !== undefined
+    ? riskColorMap[riskData.RiskDot as keyof typeof riskColorMap] || riskColorMap.null
+    : undefined)
+
+  const solutionColor = riskData.solutionColor || (riskData.SolutionDot !== null && riskData.SolutionDot !== undefined
+    ? solutionColorMap[riskData.SolutionDot as keyof typeof solutionColorMap] || solutionColorMap.null
+    : undefined)
 
   return (
     <Card
@@ -264,6 +314,25 @@ const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
     </Card>
   )
 }
+
+const styles = StyleSheet.create({
+  paginationContainer: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6
+  },
+  paginationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    opacity: 0.8
+  }
+})
 
 export default EventCard
 

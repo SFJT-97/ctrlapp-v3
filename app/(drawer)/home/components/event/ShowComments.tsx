@@ -207,13 +207,14 @@ const ShowComments: React.FC<ShowCommentsProps> = ({ idTicketNew }) => {
           Comments ({comments?.data?.allCommentsFromTicketNew?.length || 0})
         </Text>
       </View>
-      <FlatList
-        data={displayedComments}
-        keyExtractor={(item) => item.idTicketNewComment}
-        renderItem={renderComment}
-        ListEmptyComponent={renderEmptyState}
-        ListFooterComponent={
-          hasMoreComments ? (
+      {displayedComments.length > 0 ? (
+        <>
+          {displayedComments.map((item) => (
+            <View key={item.idTicketNewComment}>
+              {renderComment({ item })}
+            </View>
+          ))}
+          {hasMoreComments && (
             <View style={{ padding: 16, alignItems: 'center' }}>
               <Button
                 mode='outlined'
@@ -223,11 +224,11 @@ const ShowComments: React.FC<ShowCommentsProps> = ({ idTicketNew }) => {
                 Load More
               </Button>
             </View>
-          ) : null
-        }
-        scrollEnabled={false}
-        removeClippedSubviews={false}
-      />
+          )}
+        </>
+      ) : (
+        renderEmptyState()
+      )}
       <CommentInput onSubmit={handleSubmitComment} />
     </View>
   )

@@ -1,0 +1,56 @@
+{
+  "title": "Perfil",
+  "sections": {
+    "personalInfo": "Información Personal",
+    "contactInfo": "Información de Contacto",
+    "preferences": "Preferencias"
+  },
+  "labels": {
+    "name": "Nombre",
+    "company": "Empresa",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "address": "Dirección"
+  },
+  "placeholders": {
+    "name": "Nombre",
+    "company": "Empresa",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "address": "Dirección"
+  },
+  "buttons": {
+    "save": "Guardar Cambios",
+    "cancel": "Cancelar"
+  },
+  "preferences": {
+    "language": "Idioma",
+    "theme": "Tema",
+    "themeOptions": {
+      "light": "Claro",
+      "dark": "Oscuro"
+    }
+  },
+  "alerts": {
+    "success": "Éxito",
+    "updateSuccess": "Perfil actualizado exitosamente",
+    "error": "Error",
+    "loadError": "Error al cargar los datos del usuario. Por favor intenta de nuevo",
+    "saveError": "Error al guardar el perfil. Por favor intenta de nuevo",
+    "themeUpdateError": "Error al actualizar el tema. Por favor intenta de nuevo",
+    "validationError": "Error de Validación",
+    "validationMessage": "Por favor verifica la información proporcionada",
+    "userDataNotLoaded": "Los datos del usuario no se cargaron. Por favor actualiza la página"
+  },
+  "errors": {
+    "loadFailed": "Error al cargar el perfil",
+    "configNotFound": "ID de configuración de usuario no encontrado",
+    "imageUploadFailed": "Error al subir la imagen"
+  },
+  "validation": {
+    "emailInvalid": "Por favor ingresa un correo electrónico válido",
+    "phoneInvalid": "Por favor ingresa un número de teléfono válido",
+    "addressInvalid": "Por favor ingresa una dirección válida"
+  }
+}
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { View, TouchableOpacity } from 'react-native'
 import { Text, useTheme, IconButton, Chip } from 'react-native-paper'
 import { gql, useLazyQuery, useMutation, useQuery } from '@apollo/client'
@@ -267,15 +267,12 @@ const EventCardFooter: React.FC<EventCardFooterProps> = ({
               compact
               textStyle={{ 
                 fontSize: 12, 
-                color: theme.colors.onSurface,
+                color: theme.colors.onPrimary,
                 paddingHorizontal: 4,
                 lineHeight: 16
               }}
               style={{
-                backgroundColor:
-                  type === 'action'
-                    ? theme.colors.primaryContainer
-                    : theme.colors.secondaryContainer,
+                backgroundColor: theme.colors.primary,
                 height: 28,
                 paddingHorizontal: 8
               }}
@@ -288,9 +285,10 @@ const EventCardFooter: React.FC<EventCardFooterProps> = ({
               compact
               textStyle={{ 
                 fontSize: 12, 
-                color: 'black',
+                color: '#FFFFFF',
                 paddingHorizontal: 4,
-                lineHeight: 16
+                lineHeight: 16,
+                fontWeight: '500'
               }}
               style={{
                 backgroundColor: riskColor,
@@ -306,9 +304,10 @@ const EventCardFooter: React.FC<EventCardFooterProps> = ({
               compact
               textStyle={{ 
                 fontSize: 12, 
-                color: 'black',
+                color: '#000000',
                 paddingHorizontal: 4,
-                lineHeight: 16
+                lineHeight: 16,
+                fontWeight: '500'
               }}
               style={{
                 backgroundColor: solutionColor,

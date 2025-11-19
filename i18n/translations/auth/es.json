@@ -1,0 +1,30 @@
+{
+  "login": {
+    "title": "CONTROL ACCIÓN",
+    "placeholders": {
+      "username": "Usuario / correo",
+      "password": "Contraseña"
+    },
+    "buttons": {
+      "login": "Iniciar sesión",
+      "biometric": "Usar huella digital"
+    }
+  },
+  "errors": {
+    "loginFailed": "Error al iniciar sesión",
+    "noToken": "No se recibió token del servidor",
+    "biometricFailed": "Error en autenticación biométrica",
+    "biometricNotAvailable": "Por favor inicia sesión con usuario y contraseña primero",
+    "generic": "Ocurrió un error durante la autenticación"
+  },
+  "biometric": {
+    "promptMessage": "Autenticación Biométrica",
+    "fallbackLabel": "Usar Contraseña"
+  },
+  "validation": {
+    "usernameRequired": "El usuario es requerido",
+    "passwordRequired": "La contraseña es requerida",
+    "invalidCredentials": "Usuario o contraseña inválidos"
+  }
+}
+

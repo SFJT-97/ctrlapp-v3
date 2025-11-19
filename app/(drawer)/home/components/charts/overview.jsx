@@ -153,11 +153,11 @@ const CustomOverviewTable = ({ params, items }) => {
   const client = useApolloClient()
   const [refreshing, setRefreshing] = useState(false)
 
-  // Sort items by dateTimeEvent
+  // Sort items by dateTimeEvent (most recent first)
   useEffect(() => {
     const sorted = [...items].sort((a, b) => {
-      const dateA = new Date(a.result.dateTimeEvent)
-      const dateB = new Date(b.result.dateTimeEvent)
+      const dateA = new Date(Number(a.result?.dateTimeEvent))
+      const dateB = new Date(Number(b.result?.dateTimeEvent))
       // Handle invalid dates by placing them at the end
       if (isNaN(dateA.getTime())) return 1
       if (isNaN(dateB.getTime())) return -1

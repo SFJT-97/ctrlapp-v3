@@ -34,10 +34,11 @@ const CommentItem: React.FC<CommentItemProps> = ({
     <View
       style={{
         flexDirection: 'row',
-        paddingVertical: 12,
+        paddingVertical: 16,
         paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.outlineVariant
+        borderBottomColor: theme.colors.outlineVariant,
+        backgroundColor: theme.colors.surface
       }}
     >
       {avatarSource ? (
@@ -53,8 +54,8 @@ const CommentItem: React.FC<CommentItemProps> = ({
           style={{ backgroundColor: theme.colors.surfaceVariant, marginRight: 12 }}
         />
       )}
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
           <Text
             style={{
               fontSize: 14,
@@ -62,6 +63,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
               color: theme.colors.onSurface,
               marginRight: 8
             }}
+            numberOfLines={1}
           >
             {nickName}
           </Text>

@@ -1,3 +1,18 @@
 {
-  "title": "Chat"
+  "title": "Chat",
+  "messages": {
+    "noMessages": "No messages yet",
+    "sending": "Sending...",
+    "sent": "Sent",
+    "failed": "Failed to send"
+  },
+  "input": {
+    "placeholder": "Type a message...",
+    "send": "Send",
+    "maxLength": "Maximum {{max}} characters"
+  },
+  "actions": {
+    "send": "Send message",
+    "retry": "Retry"
+  }
 }

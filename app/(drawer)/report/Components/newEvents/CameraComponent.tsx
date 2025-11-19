@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react'
 import { View, StyleSheet, Alert, BackHandler } from 'react-native'
 import { Button, IconButton, Surface, useTheme, ActivityIndicator, Text } from 'react-native-paper'
+import { useTranslation } from 'react-i18next'
 import * as ImagePicker from 'expo-image-picker'
 import { takePhotoWithNativeCamera, recordVideoWithNativeCamera } from '../../../../../globals/utils/cameraUtils'
 
@@ -27,6 +28,7 @@ export default function CameraComponent({
   wichCamera = 'back',
   optionOnlyShot = false
 }: CameraComponentProps): React.JSX.Element {
+  const { t } = useTranslation('report')
   const theme = useTheme()
   const [isProcessing, setIsProcessing] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
@@ -69,7 +71,7 @@ export default function CameraComponent({
           // (automatically highlights next available slot)
           setIsCameraActive(false)
         } else {
-          Alert.alert('Error', 'Failed to capture photo. Please try again.')
+          Alert.alert(t('alerts.error'), t('media.captureError'))
           setIsCameraActive(false)
         }
       } else if (mode === 'video') {
@@ -96,7 +98,7 @@ export default function CameraComponent({
             // Don't close camera here - let parent component handle the flow
             setIsCameraActive(false)
           } else {
-            Alert.alert('Error', 'Failed to record video. Please try again.')
+            Alert.alert(t('alerts.error'), t('media.recordError'))
             setIsCameraActive(false)
           }
           setIsRecording(false)
@@ -104,7 +106,7 @@ export default function CameraComponent({
       }
     } catch (error) {
       console.error('Error in handleCapture:', error)
-      Alert.alert('Error', 'An error occurred while capturing media.')
+      Alert.alert(t('alerts.error'), t('media.mediaError'))
     } finally {
       setIsProcessing(false)
     }
