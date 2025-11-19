@@ -24,6 +24,8 @@ import { getFormatedDate } from 'react-native-modern-datepicker'
 // global variables
 import { API_URL } from '../../../../../globals/variables/globalVariables'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { saveFileLocally, savePendingTicket } from '../../../../../globals/utils/offlineTicketUtils'
+import { useTranslation } from 'react-i18next'
 
 // import TimeDate from './TimeDate'
 
@@ -87,6 +89,7 @@ const getSignedUrlFromCacheQ = gql`
 `
 
 export default function ReportEventIA (args) {
+  const { t } = useTranslation('report')
   const { defaultValues, ticketsAcount, name, responseJSON } = args
   const {
     me, // Para saber a donde pertenezco y por lo tanto a quien notificar
@@ -158,101 +161,184 @@ export default function ReportEventIA (args) {
     }
     setLoad(true) // Colocamos el estado de carga en true
 
-    // Segundo hay que verificar que archivos multimedia se cargaron para subirlos de a uno
-    let mMedia = []
-    if (image1 !== undefined && image1 !== '') mMedia.push(uploadFile(image1))
-    if (image2 !== undefined && image2 !== '') mMedia.push(uploadFile(image2))
-    if (image3 !== undefined && image3 !== '') mMedia.push(uploadFile(image3))
-    if (video !== undefined && video !== '') mMedia.push(uploadFile(video, false))
-    mMedia = await executeMultipleMutation(mMedia, MultipleUploadS3) // mMedia será un arreglo "asíncrono" con toda la info de los archivos subidos
-    console.log('mMedia', mMedia)
-    // Ahora se extrae de los nombres las ubicaciónes (location) en el bucket de AWS S3
-    let locationImage1 = ''
-    let locationImage2 = ''
-    let locationImage3 = ''
-    let locationImage4 = `${API_URL}uploads/ctrla-icon.png`
-    let locationVideo = ''
-    if (mMedia !== undefined) {
-      for (let i = 0; i < mMedia?.length; i++) {
-        if (mMedia[i].mimetype.toString().includes('image')) {
-          switch (i) {
-            case 0:
-              locationImage1 = mMedia[i].location
-              try {
-                const tempImg = await getSignedImageURL({ variables: { idSiMMediaURL: locationImage1.split('/').pop() } })
-                if (tempImg && !tempImg.loading && !tempImg.error && tempImg !== 'Loading...') {
-                  // console.log('tempImg?.data?.getSignedUrlFromCache?.signedUrl =', tempImg?.data?.getSignedUrlFromCache?.signedUrl)
-                  locationImage4 = tempImg?.data?.getSignedUrlFromCache?.signedUrl
-                  if (locationImage4 === undefined) locationImage4 = `${API_URL}uploads/ctrla-icon.png`
-                }
-              } catch (error) {
-                locationImage4 = `${API_URL}uploads/ctrla-icon.png`
-                console.log('error getting ImageVideoURL', error)
-                console.log('uploaded', uploaded)
+    try {
+      // FIXED: Check network before attempting upload
+      const netInfo = await NetInfo.fetch()
+      const isOnline = netInfo.isConnected && netInfo.isInternetReachable
+
+      // FIXED: Save files locally first (for offline support)
+      const mediaFiles = []
+      if (image1 !== undefined && image1 !== '') {
+        const savedFile = await saveFileLocally({ uri: image1, mimeType: 'image/jpeg' })
+        if (savedFile) mediaFiles.push(savedFile)
+      }
+      if (image2 !== undefined && image2 !== '') {
+        const savedFile = await saveFileLocally({ uri: image2, mimeType: 'image/jpeg' })
+        if (savedFile) mediaFiles.push(savedFile)
+      }
+      if (image3 !== undefined && image3 !== '') {
+        const savedFile = await saveFileLocally({ uri: image3, mimeType: 'image/jpeg' })
+        if (savedFile) mediaFiles.push(savedFile)
+      }
+      if (video !== undefined && video !== '') {
+        const savedFile = await saveFileLocally({ uri: video, mimeType: 'video/mp4' })
+        if (savedFile) mediaFiles.push(savedFile)
+      }
+
+      // Segundo hay que verificar que archivos multimedia se cargaron para subirlos de a uno
+      let mMedia = []
+      let locationImage1 = ''
+      let locationImage2 = ''
+      let locationImage3 = ''
+      let locationImage4 = `${API_URL}uploads/ctrla-icon.png`
+      let locationVideo = ''
+
+      if (isOnline) {
+        // Only try to upload if online
+        if (image1 !== undefined && image1 !== '') mMedia.push(uploadFile(image1))
+        if (image2 !== undefined && image2 !== '') mMedia.push(uploadFile(image2))
+        if (image3 !== undefined && image3 !== '') mMedia.push(uploadFile(image3))
+        if (video !== undefined && video !== '') mMedia.push(uploadFile(video, false))
+        mMedia = await executeMultipleMutation(mMedia, MultipleUploadS3) // mMedia será un arreglo "asíncrono" con toda la info de los archivos subidos
+        console.log('mMedia', mMedia)
+        
+        // Ahora se extrae de los nombres las ubicaciónes (location) en el bucket de AWS S3
+        if (mMedia !== undefined && mMedia.length > 0) {
+          for (let i = 0; i < mMedia?.length; i++) {
+            if (mMedia[i]?.mimetype?.toString().includes('image')) {
+              switch (i) {
+                case 0:
+                  locationImage1 = mMedia[i].location
+                  try {
+                    const tempImg = await getSignedImageURL({ variables: { idSiMMediaURL: locationImage1.split('/').pop() } })
+                    if (tempImg && !tempImg.loading && !tempImg.error && tempImg !== 'Loading...') {
+                      // console.log('tempImg?.data?.getSignedUrlFromCache?.signedUrl =', tempImg?.data?.getSignedUrlFromCache?.signedUrl)
+                      locationImage4 = tempImg?.data?.getSignedUrlFromCache?.signedUrl
+                      if (locationImage4 === undefined) locationImage4 = `${API_URL}uploads/ctrla-icon.png`
+                    }
+                  } catch (error) {
+                    locationImage4 = `${API_URL}uploads/ctrla-icon.png`
+                    console.log('error getting ImageVideoURL', error)
+                    console.log('uploaded', uploaded)
+                  }
+                  break
+                case 1:
+                  locationImage2 = mMedia[i].location; break
+                case 2:
+                  locationImage3 = mMedia[i].location; break
               }
-              break
-            case 1:
-              locationImage2 = mMedia[i].location; break
-            case 2:
-              locationImage3 = mMedia[i].location; break
+            } else {
+              locationVideo = mMedia[i].location
+            }
           }
-        } else {
-          locationVideo = mMedia[i].location
         }
       }
-    }
-    // Ahora se está en condiciones de llamar a la mutación de llenado del ticket
-    try {
-      const dataNewTicketAdded = await addNewTicketNew({
-        variables: {
-          idUser: me.idUser,
-          type: eventType,
-          companyName: me.companyName,
-          companyBusinessUnitDescription: me.companyBusinessUnitDescription, // no se requiere la unidad de negocios en el ticket, se toma la del usuario
-          companySectorDescription: companySector, // este se podría tratar de detectar con el gps del celu
-          dateTimeEvent,
-          classification: eventClassification.slice(0, 1),
-          classificationDescription: eventClassification.slice(4),
-          subType: eventSubType,
-          riskQualification,
-          ticketCustomDescription: description,
-          ticketImage1: locationImage1,
-          ticketImage2: locationImage2,
-          ticketImage3: locationImage3,
-          ticketImage4: locationImage4,
-          ticketVideo: locationVideo,
-          ticketSolved: false, // Un evento de estas caracteristicas cargado por un usuario final está sin cerrar
-          ticketLike: 0,
-          injuredPeople: 0,
-          lostProduction: 0,
-          lostProductionTotalTimeDuration: 0,
-          ticketClosed: false,
-          solutionType: solutionState,
-          costAsociated: 0
+
+      // Ahora se está en condiciones de llamar a la mutación de llenado del ticket
+      if (isOnline && mMedia !== undefined && mMedia.length > 0) {
+        // Try to upload immediately if online
+        try {
+          const dataNewTicketAdded = await addNewTicketNew({
+            variables: {
+              idUser: me.idUser,
+              type: eventType,
+              companyName: me.companyName,
+              companyBusinessUnitDescription: me.companyBusinessUnitDescription, // no se requiere la unidad de negocios en el ticket, se toma la del usuario
+              companySectorDescription: companySector, // este se podría tratar de detectar con el gps del celu
+              dateTimeEvent,
+              classification: eventClassification.slice(0, 1),
+              classificationDescription: eventClassification.slice(4),
+              subType: eventSubType,
+              riskQualification,
+              ticketCustomDescription: description,
+              ticketImage1: locationImage1,
+              ticketImage2: locationImage2,
+              ticketImage3: locationImage3,
+              ticketImage4: locationImage4,
+              ticketVideo: locationVideo,
+              ticketSolved: false, // Un evento de estas caracteristicas cargado por un usuario final está sin cerrar
+              ticketLike: 0,
+              injuredPeople: 0,
+              lostProduction: 0,
+              lostProductionTotalTimeDuration: 0,
+              ticketClosed: false,
+              solutionType: solutionState,
+              costAsociated: 0
+            }
+          })
+          // en este punto se subió el nuevo ticket a mongoDB y es el BE el que selecciona a que usuarios mandar las notitifaciones
+
+          Alert.alert(
+            `📢 Well done ${name}!`,
+            `You successfully helped ${me.companyName} with safety.\nTicketId=${dataNewTicketAdded?.data?.addNewTicketNew?.idTicketNew}\n${Number(ticketsAcount) + 1} total tickets...`, [
+              {
+                text: 'Acept ✅',
+                style: 'default',
+                onPress: () => setUploaded(true)
+              }
+            ], 'cancelable')
+
+          // Ahora entonces se coloca el valor de waiting_ticket_offLine en false, para que se pueda volver a llamar esta función si se hubiesen subido varios.
+          await AsyncStorage.setItem('waiting_ticket_offLine', JSON.stringify(false))
+
+          router.navigate({ pathname: 'report' })
+          setLoad(false)
+          return
+        } catch (error) {
+          console.error('Error uploading ticket:', error)
+          // Fall through to save offline
         }
+      }
+
+      // Save offline (either we're offline, or upload failed)
+      const ticketData = {
+        idUser: me.idUser,
+        type: eventType,
+        companyName: me.companyName,
+        companyBusinessUnitDescription: me.companyBusinessUnitDescription,
+        companySectorDescription: companySector,
+        dateTimeEvent,
+        classification: eventClassification.slice(0, 1),
+        classificationDescription: eventClassification.slice(4),
+        subType: eventSubType,
+        riskQualification,
+        ticketCustomDescription: description,
+        ticketImage1: image1 || '',
+        ticketImage2: image2 || '',
+        ticketImage3: image3 || '',
+        ticketImage4: '',
+        ticketVideo: video || '',
+        ticketSolved: false,
+        ticketLike: 0,
+        injuredPeople: 0,
+        lostProduction: 0,
+        lostProductionTotalTimeDuration: 0,
+        ticketClosed: false,
+        solutionType: solutionState,
+        costAsociated: 0
+      }
+
+      await savePendingTicket({
+        data: ticketData,
+        files: mediaFiles,
+        fromVoiceOffLine: false
       })
-      // en este punto se subió el nuevo ticket a mongoDB y es el BE el que selecciona a que usuarios mandar las notitifaciones
 
       Alert.alert(
-        `📢 Well done ${name}!`,
-        `You successfully helped ${me.companyName} with safety.\nTicketId=${dataNewTicketAdded?.data?.addNewTicketNew?.idTicketNew}\n${Number(ticketsAcount) + 1} total tickets...`, [
-          {
-            text: 'Acept ✅',
-            style: 'default',
-            onPress: () => setUploaded(true)
-          }
-        ], 'cancelable')
+        t('alerts.savedOffline') || 'Saved Offline',
+        t('alerts.offlineMessage') || 'Ticket saved offline and will be uploaded when connection is available.'
+      )
 
       // Ahora entonces se coloca el valor de waiting_ticket_offLine en false, para que se pueda volver a llamar esta función si se hubiesen subido varios.
       await AsyncStorage.setItem('waiting_ticket_offLine', JSON.stringify(false))
 
       router.navigate({ pathname: 'report' })
     } catch (error) {
-      console.log(error)
-      console.log(dataaddNewTicketNew)
+      console.error('Error in handleSubmit:', error)
+      Alert.alert(t('alerts.error') || 'Error', t('alerts.saveError') || 'Failed to save ticket. Please try again.')
+    } finally {
+      setLoad(false)
     }
-
-    setLoad(false)
   }
 
   const executeMultipleMutation = async (newFiles, MultipleUploadS3) => {

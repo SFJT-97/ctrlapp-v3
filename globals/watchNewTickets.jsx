@@ -8,6 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import uploadFile from './uploadFile'
 import { useAsyncStorage } from '../context/hooks/ticketNewQH'
 import { useRouter } from 'expo-router'
+import { getPendingTickets } from './utils/offlineTicketUtils'
+import { notifyReportUploaded, notifyVoiceEventReady } from './utils/notificationUtils'
 
 // Global variables
 import { API_URL } from './variables/globalVariables'
@@ -79,7 +81,7 @@ query Query($query: String!) {
 
 `
 
-const WATCHTICKET_TIME = 1000 * 30 // Buscará si hay nuevos tickets cada 30 segundos
+const POLLING_INTERVAL = 1000 * 60 * 5 // Smart polling: every 5 minutes (only when tickets exist)
 
 const executeMultipleMutation = async (newFiles, MultipleUploadS3) => {
   // console.log('newFiles\n', newFiles)
@@ -121,30 +123,67 @@ export const WatchNewTickets = () => {
     return /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(filePath)
   }
 
+  // Migrate legacy keys to new format
+  const migrateLegacyKeys = async () => {
+    try {
+      const allKeys = await AsyncStorage.getAllKeys()
+      const legacyKeys = allKeys.filter(key => key.startsWith('PendingTickets-') && key !== 'PendingTickets')
+      
+      if (legacyKeys.length === 0) return
+
+      // Get current pending tickets
+      const currentTickets = await getPendingTickets()
+      
+      // Migrate all legacy tickets
+      for (const legacyKey of legacyKeys) {
+        try {
+          const legacyTickets = JSON.parse(await AsyncStorage.getItem(legacyKey) || '[]')
+          if (Array.isArray(legacyTickets) && legacyTickets.length > 0) {
+            currentTickets.push(...legacyTickets)
+          }
+          // Remove legacy key after migration
+          await AsyncStorage.removeItem(legacyKey)
+        } catch (error) {
+          console.error(`Error migrating key ${legacyKey}:`, error)
+        }
+      }
+      
+      // Save all tickets to new format
+      if (currentTickets.length > 0) {
+        await AsyncStorage.setItem('PendingTickets', JSON.stringify(currentTickets))
+      }
+    } catch (error) {
+      console.error('Error migrating legacy keys:', error)
+    }
+  }
+
   const fetchNewTickets = async () => {
     try {
       const state = await NetInfo.fetch()
       // console.log('generalData\n', generalData)
-      if (state.isConnected && generalData) {
-        // console.log('conected')
-        const allKeys = await AsyncStorage.getAllKeys()
-        const pendingKeys = allKeys.filter(key => key.startsWith('PendingTickets-'))
+      if (state.isConnected && state.isInternetReachable && generalData) {
+        // Migrate legacy keys first
+        await migrateLegacyKeys()
+        
+        // Get all pending tickets (new format)
+        const pendingTickets = await getPendingTickets()
+        
         let tempTicketData
         // En esta parte habría que agregarle algo que verifique si "waiting_ticket_offLine === true" y ya pasó mucho tiempo que no se resuelve...
-        let isTicketOfflineOpened = JSON.parse(await AsyncStorage.getItem('waiting_ticket_offLine'))
+        let isTicketOfflineOpened = JSON.parse(await AsyncStorage.getItem('waiting_ticket_offLine') || 'false')
         if (!isTicketOfflineOpened) isTicketOfflineOpened = false
-        if (pendingKeys?.length > 0 && !isTicketOfflineOpened) {
-          // console.log('pendingKeys.length', pendingKeys.length)
-          for (let i = 0; i < pendingKeys?.length; i++) {
+        
+        if (pendingTickets?.length > 0 && !isTicketOfflineOpened) {
+          // Process tickets in reverse order to avoid index shifting when removing
+          const indicesToRemove = []
+          for (let i = pendingTickets.length - 1; i >= 0; i--) {
+            const ticket = pendingTickets[i]
             // En este punto, cada "i" será un ticket cargado y sin subir.
             let mMedia = []
-            const tickets = JSON.parse(await AsyncStorage.getItem(pendingKeys[i]))
-
-            // await AsyncStorage.removeItem(pendingKeys[i])
-
-            for (const ticket of tickets) {
-              isTicketOfflineOpened = JSON.parse(await AsyncStorage.getItem('waiting_ticket_offLine'))
-              if (!isTicketOfflineOpened) {
+            
+            // Check if ticket offline screen is opened
+            isTicketOfflineOpened = JSON.parse(await AsyncStorage.getItem('waiting_ticket_offLine') || 'false')
+            if (!isTicketOfflineOpened) {
                 // ticket.data tiene la info del nuevo ticketNew que hay que subir y ticket.files tiene la info de los archivos multimedia de ese ticket
                 tempTicketData = ticket?.data
                 const tempFiles = sanitizeFiles(ticket?.files)
@@ -244,7 +283,15 @@ export const WatchNewTickets = () => {
                   // En esta parte se averigua si el ticket se había subido desde un "new voice offLine event" o desde un "new event"
                   if (!ticket.fromVoiceOffLine) {
                     // new event
-                    await addNewTicketNew({ variables: tempTicketData })
+                    const result = await addNewTicketNew({ variables: tempTicketData })
+                    const ticketId = result?.data?.addNewTicketNew?.idTicketNew
+                    const classification = tempTicketData?.classificationDescription
+                    
+                    // Send notification that report was uploaded
+                    await notifyReportUploaded(ticketId, classification)
+                    
+                    // Mark for removal
+                    indicesToRemove.push(i)
                   } else {
                     if (!gData) return // Para evitar que se cargue mal el formulario por si hubo algún error de lectura del asyncStorage
                     // new voice offLine event
@@ -282,6 +329,13 @@ export const WatchNewTickets = () => {
                       }
                       // Acá hay que guardar el `waiting_ticket_offLine` en AsyncStorage con el valor "true"
                       await AsyncStorage.setItem('waiting_ticket_offLine', JSON.stringify(true))
+                      
+                      // Send notification that AI is ready to process
+                      await notifyVoiceEventReady()
+                      
+                      // Mark for removal
+                      indicesToRemove.push(i)
+                      
                       // 4)_
                       router.navigate({
                         pathname: '/report/newvoice/upload/[upload]',
@@ -289,15 +343,26 @@ export const WatchNewTickets = () => {
                       })
                     } catch (error) {
                       console.log('error', error)
+                      // Keep ticket in queue for retry
                     }
                   }
                   // en este punto se subió el nuevo ticket a mongoDB y es el BE el que selecciona a que usuarios mandar las notitifaciones
-                  await AsyncStorage.removeItem(pendingKeys[i])
                 } catch (error) {
                   console.log('Error...', error)
+                  // Keep ticket in queue for retry
                 }
               }
             }
+          
+          // Remove successfully processed tickets (after processing all tickets)
+          if (indicesToRemove.length > 0) {
+            const updatedTickets = await getPendingTickets()
+            // Sort indices in descending order to remove from end first
+            indicesToRemove.sort((a, b) => b - a)
+            for (const index of indicesToRemove) {
+              updatedTickets.splice(index, 1)
+            }
+            await AsyncStorage.setItem('PendingTickets', JSON.stringify(updatedTickets))
           }
         } else {
           console.log('no pending tickets...')
@@ -353,12 +418,38 @@ eventClassification: <Clasificación de evento>
   }, [generalData, loading, generalError])
 
   useEffect(() => {
-    // Esta función verificará cada "WATCHTICKET_TIME" si se cargaron o no nuevos tickets
-    const interval = setInterval(async () => {
-      console.log('buscando nuevos tickets...\n')
-      await fetchNewTickets()
-    }, WATCHTICKET_TIME)
-    return () => clearInterval(interval) // limpiar al desmontar
+    // Event-driven: Immediate response when connection restored
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && state.isInternetReachable) {
+        console.log('Connection restored, checking for pending tickets...')
+        fetchNewTickets().catch(error => {
+          console.error('Error fetching tickets on connection restore:', error)
+        })
+      }
+    })
+
+    // Smart polling fallback: Check every 5 minutes, only when tickets exist
+    const checkPendingTickets = async () => {
+      try {
+        const pendingTickets = await getPendingTickets()
+        if (pendingTickets && pendingTickets.length > 0) {
+          const state = await NetInfo.fetch()
+          if (state.isConnected && state.isInternetReachable) {
+            console.log('Smart polling: checking pending tickets...')
+            await fetchNewTickets()
+          }
+        }
+      } catch (error) {
+        console.error('Error in smart polling:', error)
+      }
+    }
+
+    const interval = setInterval(checkPendingTickets, POLLING_INTERVAL)
+
+    return () => {
+      unsubscribe()
+      clearInterval(interval)
+    }
   }, [])
 
   return (
@@ -733,3 +824,4 @@ eventClassification: <Clasificación de evento>
 //     <></>
 //   )
 // }
+

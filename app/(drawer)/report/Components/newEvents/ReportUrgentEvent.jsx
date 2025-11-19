@@ -15,46 +15,8 @@ import MediaGrid from './MediaGrid'
 import { useRouter } from 'expo-router'
 
 // Imports for save locally files and mutations when there are no connection available
-import * as FileSystem from 'expo-file-system'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-
-const PENDING_UPLOADS_KEY = 'PendingTickets-' + Date.now().toString()
-
-const saveFileLocally = async (file) => {
-  const filename = file.uri.split('/').pop()
-  const newPath = `${FileSystem.documentDirectory}${filename}`
-
-  try {
-    await FileSystem.copyAsync({ from: file.uri, to: newPath })
-
-    const fileInfo = await FileSystem.getInfoAsync(newPath, { size: true })
-
-    return {
-      uri: newPath,
-      name: filename,
-      mimeType: file.mimeType || null,
-      size: fileInfo.size || null,
-      filename: newPath,
-      // Puedes agregar otras propiedades si sabés que están en el original
-      lastModified: fileInfo.modificationTime || null
-    }
-  } catch (error) {
-    console.log('Error saving file locally:', error)
-    return null
-  }
-}
-
-// Guardar un ticket pendiente en AsyncStorage
-const savePendingTicket = async (ticketData) => {
-  // console.log('ticketData\n', ticketData)
-  try {
-    const pendingTickets = JSON.parse(await AsyncStorage.getItem(PENDING_UPLOADS_KEY)) || []
-    pendingTickets.push(ticketData)
-    await AsyncStorage.setItem(PENDING_UPLOADS_KEY, JSON.stringify(pendingTickets))
-  } catch (error) {
-    console.log('Error saving pending ticket:', error)
-  }
-}
+import { saveFileLocally, savePendingTicket } from '../../../../../globals/utils/offlineTicketUtils'
 
 export default function ReportEvent (args) {
   let { defaultValues } = args

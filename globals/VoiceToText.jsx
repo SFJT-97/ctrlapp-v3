@@ -10,11 +10,9 @@ import CameraComponent from '../app/(drawer)/report/Components/newEvents/CameraC
 import { useRouter } from 'expo-router'
 
 // Imports for save locally files and mutations when there are no connection available
-import * as FileSystem from 'expo-file-system'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import CustomActivityIndicator from './components/CustomActivityIndicator'
-
-const PENDING_UPLOADS_KEY = 'PendingTickets-' + Date.now().toString()
+import { saveFileLocally, savePendingTicket } from './utils/offlineTicketUtils'
 
 const LANG_CODE = 'es-US'
 
@@ -111,39 +109,6 @@ export default function VoiceToText () {
     }
   }
 
-  const saveFileLocally = async (file) => {
-    const filename = file.uri.split('/').pop()
-    const newPath = `${FileSystem.documentDirectory}${filename}`
-
-    try {
-      await FileSystem.copyAsync({ from: file.uri, to: newPath })
-
-      const fileInfo = await FileSystem.getInfoAsync(newPath, { size: true })
-
-      return {
-        uri: newPath,
-        name: filename,
-        mimeType: file.mimeType || null,
-        size: fileInfo.size || null,
-        filename: newPath,
-        // Puedes agregar otras propiedades si sabés que están en el original
-        lastModified: fileInfo.modificationTime || null
-      }
-    } catch (error) {
-      console.log('Error saving file locally:', error)
-      return null
-    }
-  }
-
-  const savePendingTicket = async (ticketData) => {
-    try {
-      const pendingTickets = JSON.parse(await AsyncStorage.getItem(PENDING_UPLOADS_KEY)) || []
-      pendingTickets.push(ticketData)
-      await AsyncStorage.setItem(PENDING_UPLOADS_KEY, JSON.stringify(pendingTickets))
-    } catch (error) {
-      console.log('Error saving pending ticket:', error)
-    }
-  }
 
   const handleSubmit = async () => {
     setLoad(true)

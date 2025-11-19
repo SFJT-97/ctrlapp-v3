@@ -5,7 +5,9 @@ export interface User {
   idEmployee: string
   nickName: string
   firstName: string
+  secondName?: string
   lastName: string
+  secondLastName?: string
   email: string
   phone?: string
   password?: string
