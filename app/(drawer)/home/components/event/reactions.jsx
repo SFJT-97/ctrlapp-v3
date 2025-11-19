@@ -1,14 +1,13 @@
 // ==> 2024-10-02
 // Builtin modules
 import { useState, useEffect } from 'react'
-import { View, AppState, AppStateStatus } from 'react-native'
-import { useTheme, IconButton, Chip } from 'react-native-paper'
+import { View, AppState, AppStateStatus, TouchableOpacity } from 'react-native'
+import { useTheme, IconButton, Text } from 'react-native-paper'
 import { useLazyQuery, gql, useMutation, useQuery } from '@apollo/client'
 import { useIsFocused } from '@react-navigation/native'
 
 // Custom modules
 import { useMe } from '../../../../../context/hooks/userQH'
-import { numbToEng } from '../../../../../globals/functions/functions'
 
 const findTicketNewLikeQ = gql`
 query FindTicketNewLike($idTicketNew: ID!) {
@@ -92,139 +91,146 @@ const Reaction = ({ param }) => {
   })
 
   const theme = useTheme()
-  const [pressed, setPressed] = useState({
-    thumbUp: false,
-    thumbDown: false,
-    download: false
-  })
+  const [userVote, setUserVote] = useState(null) // 'up' | 'down' | null
+  const [voteId, setVoteId] = useState(null)
 
-  const handlePress = (iconName) => {
-    let temp
-    switch (iconName) {
-      case 'thumbUp':
-        temp = {
-          thumbUp: !pressed.thumbUp,
-          thumbDown: false,
-          download: false
-        }
-        break
-      case 'thumbDown':
-        temp = {
-          thumbUp: false,
-          thumbDown: !pressed.thumbDown,
-          download: false
-        }
-        break
-      default:
-        temp = {
-          ...pressed,
-          [iconName]: !pressed[iconName]
-        }
-        break
-    }
-    // console.log('temp', temp)
-    setPressed(temp)
-    handleReaction(temp, true)
-  }
+  const handleUpvote = async () => {
+    if (!parParam?.idTicketNew || !me?.idUser) return
 
-  const handleReaction = async (param, update = false) => {
-    // en esta parte se consulta cual fue la reacción previa del usuario a este ticket, si es que la hubo
-    let tempResult = null
+    const newVote = userVote === 'up' ? null : 'up'
+    const ticketLike = newVote === 'up'
+    const ticketDisLike = false
+
     try {
-      const actualReaction = await findTicketNewLike({
-        variables: {
-          idTicketNew: parParam.idTicketNew
-        }
-      })
-      // Acá encontró una reacción existente y llena tempResult con sus valores
-      if (actualReaction?.data?.findTicketNewLike?.ticketLike !== undefined) {
-        tempResult = {
-          thumbUp: actualReaction.data.findTicketNewLike.ticketLike,
-          thumbDown: actualReaction.data.findTicketNewLike.ticketDisLike,
-          download: false,
-          idTicketNewLike: actualReaction.data.findTicketNewLike.idTicketNewLike
-        }
-      }
-    } catch (error) {
-      console.log('ups... something wrong happening', error)
-    }
-    // Pregunta si se quiere actualizar o no
-    if (update) {
-      // Si ya reaccionó antes actualiza, sino agrega
-      if (tempResult === null) {
-        // acá agrega una reacción
-        // En realidad idUser y companyName, los toma el BE directamente del usuario Logueado... esto debería optimizarse a futuro
-        try {
-          tempResult = await addNewTicketNewLike({
-            variables: {
-              idTicketNew: parParam.idTicketNew,
-              idUser: me.idUser,
-              companyName: me.companyName,
-              ticketLike: param.thumbUp,
-              ticketDisLike: param.thumbDown
-            }
-          })
-        } catch (error) {
-          console.log('something did not work!...', error)
-        }
-      } else {
-        // acá edita la reacción actual
-        tempResult = await editTicketNewLike({
+      if (voteId) {
+        await editTicketNewLike({
           variables: {
-            idTicketNewLike: tempResult.idTicketNewLike,
-            idTicketNew: parParam.idTicketNew,
-            ticketLike: param.thumbUp,
-            ticketDisLike: param.thumbDown
+            idTicketNewLike: voteId,
+            ticketLike: ticketLike,
+            ticketDisLike: ticketDisLike
           }
         })
+      } else {
+        const result = await addNewTicketNewLike({
+          variables: {
+            idTicketNew: parParam.idTicketNew,
+            idUser: me.idUser,
+            companyName: me.companyName,
+            ticketLike: ticketLike,
+            ticketDisLike: ticketDisLike
+          }
+        })
+        if (result?.data?.addNewTicketNewLike?.idTicketNewLike) {
+          setVoteId(result.data.addNewTicketNewLike.idTicketNewLike)
+        }
       }
-    }
-    if (tempResult?.thumbDown !== undefined && tempResult?.thumbUp !== undefined && !update) {
-      // En esta parte, se encontraron resultados previos y solo se quiere pintar las manitos en función de si gustó o no gustó... o ni
-      setPressed({
-        ...tempResult,
-        download: false
-      })
+      setUserVote(newVote)
+    } catch (error) {
+      console.log('Error handling upvote:', error)
     }
   }
+
+  const handleDownvote = async () => {
+    if (!parParam?.idTicketNew || !me?.idUser) return
+
+    const newVote = userVote === 'down' ? null : 'down'
+    const ticketLike = false
+    const ticketDisLike = newVote === 'down'
+
+    try {
+      if (voteId) {
+        await editTicketNewLike({
+          variables: {
+            idTicketNewLike: voteId,
+            ticketLike: ticketLike,
+            ticketDisLike: ticketDisLike
+          }
+        })
+      } else {
+        const result = await addNewTicketNewLike({
+          variables: {
+            idTicketNew: parParam.idTicketNew,
+            idUser: me.idUser,
+            companyName: me.companyName,
+            ticketLike: ticketLike,
+            ticketDisLike: ticketDisLike
+          }
+        })
+        if (result?.data?.addNewTicketNewLike?.idTicketNewLike) {
+          setVoteId(result.data.addNewTicketNewLike.idTicketNewLike)
+        }
+      }
+      setUserVote(newVote)
+    } catch (error) {
+      console.log('Error handling downvote:', error)
+    }
+  }
+
+  // Fetch user's current vote
+  useEffect(() => {
+    if (parParam?.idTicketNew && me?.idUser) {
+      findTicketNewLike({
+        variables: { idTicketNew: parParam.idTicketNew }
+      }).then((result) => {
+        if (result?.data?.findTicketNewLike) {
+          const like = result.data.findTicketNewLike
+          setVoteId(like.idTicketNewLike)
+          if (like.ticketLike) {
+            setUserVote('up')
+          } else if (like.ticketDisLike) {
+            setUserVote('down')
+          } else {
+            setUserVote(null)
+          }
+        }
+      }).catch(() => {
+        // Ignore errors, user might not have voted
+      })
+    }
+  }, [parParam?.idTicketNew, me?.idUser, findTicketNewLike])
   useEffect(() => {
     if (countTotalTicketsNewLikes && !countTotalTicketsNewLikes.loading && !countTotalTicketsNewLikes.error) {
       setTotalLikesAndDislikes(countTotalTicketsNewLikes.data.countTicketNewLikes)
     }
   }, [countTotalTicketsNewLikes])
 
-  useEffect(() => {
-    try {
-      handleReaction()
-    } catch (error) {
-    }
-  }, [])
-  return (
-    <View>
-      <View style={{ display: 'flex', flexDirection: 'row', columnGap: 20 }}>
-        <IconButton
-          icon={pressed.thumbUp ? 'thumb-up' : 'thumb-up-outline'}
-          iconColor={pressed.thumbUp ? 'green' : theme.colors.primary}
-          size={26}
-          onPress={() => handlePress('thumbUp')}
-        />
-        <IconButton
-          icon={pressed.thumbDown ? 'thumb-down' : 'thumb-down-outline'}
-          iconColor={pressed.thumbDown ? theme.colors.error : theme.colors.primary}
-          size={26}
-          onPress={() => handlePress('thumbDown')}
-        />
+  const netCount = totalLikesAndDislikes
 
-        {/* <IconButton // No borrar, es para ultimas versiones
-          icon='download'
-          iconColor={theme.colors.primary}
-          size={26}
-          onPress={() => handlePress('download')}
-        /> */}
-      </View>
-      <Chip textStyle={{ textAlign: 'center', fontWeight: 'bold' }} style={{ backgroundColor: totalLikesAndDislikes < 0 ? theme.colors.errorContainer : theme.colors.secondaryContainer }}>
-        Likes: {numbToEng(totalLikesAndDislikes)}
-      </Chip>
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <TouchableOpacity
+        onPress={handleUpvote}
+        style={{ flexDirection: 'row', alignItems: 'center' }}
+      >
+        <IconButton
+          icon='arrow-up'
+          size={24}
+          iconColor={userVote === 'up' ? theme.colors.primary : theme.colors.onSurfaceVariant}
+          style={{ margin: 0 }}
+        />
+      </TouchableOpacity>
+      <Text
+        style={{
+          fontSize: 14,
+          color: netCount > 0 ? theme.colors.primary : netCount < 0 ? theme.colors.error : theme.colors.onSurfaceVariant,
+          fontWeight: '600',
+          minWidth: 30,
+          textAlign: 'center'
+        }}
+      >
+        {netCount !== 0 ? (netCount > 0 ? `+${netCount}` : `${netCount}`) : '0'}
+      </Text>
+      <TouchableOpacity
+        onPress={handleDownvote}
+        style={{ flexDirection: 'row', alignItems: 'center' }}
+      >
+        <IconButton
+          icon='arrow-down'
+          size={24}
+          iconColor={userVote === 'down' ? theme.colors.error : theme.colors.onSurfaceVariant}
+          style={{ margin: 0 }}
+        />
+      </TouchableOpacity>
     </View>
   )
 }

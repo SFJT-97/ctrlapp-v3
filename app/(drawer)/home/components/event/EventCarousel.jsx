@@ -7,7 +7,7 @@ import { useTheme, Text } from 'react-native-paper'
 import { Video, ResizeMode } from 'expo-av'
 import CustomActivityIndicator from '../../../../../globals/components/CustomActivityIndicator'
 import ZoomableImage from './ZoomableImage'
-import { DEFAULT_IMAGE2, SECURITY_PLACEHOLDER1, SECURITY_PLACEHOLDER2, SECURITY_PLACEHOLDER3, SECURITY_PLACEHOLDER4, SECURITY_PLACEHOLDER5 } from '../../../../../globals/variables/globalVariables'
+import { DEFAULT_IMAGE2, EMARAY_MOVILE_JPG, SECURITY_PLACEHOLDER1, SECURITY_PLACEHOLDER2, SECURITY_PLACEHOLDER3, SECURITY_PLACEHOLDER4, SECURITY_PLACEHOLDER5 } from '../../../../../globals/variables/globalVariables'
 
 const getSignedUrlFromCacheQ = gql`
   mutation GetSignedUrlFromCache($idSiMMediaURL: ID!) {
@@ -39,7 +39,7 @@ const EventCarousel = ({ param, rotation }) => {
   ]
 
   const randomPlaceholder = useMemo(() => {
-    return placeholders[Math.floor(Math.random() * placeholders.length)] || DEFAULT_IMAGE2
+    return EMARAY_MOVILE_JPG
   }, [])
 
   const handleIndexChange = useCallback((index) => {
@@ -119,7 +119,7 @@ const EventCarousel = ({ param, rotation }) => {
         }
 
         if (newGallery.length === 0) {
-          newGallery.push({ id: count++, source: randomPlaceholder, type: 'image' })
+          newGallery.push({ id: count++, source: EMARAY_MOVILE_JPG, type: 'image' })
         }
 
         setGallery(newGallery)

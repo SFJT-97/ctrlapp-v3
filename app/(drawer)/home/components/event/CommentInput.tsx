@@ -39,7 +39,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
     <View
       style={{
         flexDirection: 'row',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
         backgroundColor: theme.colors.surface,
@@ -51,7 +51,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
         style={{
           flex: 1,
           flexDirection: 'row',
-          alignItems: 'flex-end',
+          alignItems: 'center',
           backgroundColor: theme.colors.surfaceVariant,
           borderRadius: 24,
           paddingHorizontal: 4,
@@ -79,6 +79,8 @@ const CommentInput: React.FC<CommentInputProps> = ({
           maxLength={maxLength}
           onChangeText={setComment}
           underlineColorAndroid='transparent'
+          underlineColor='transparent'
+          activeUnderlineColor='transparent'
           contentStyle={{ color: theme.colors.onSurface }}
         />
         <TouchableOpacity

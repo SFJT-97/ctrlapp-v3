@@ -60,7 +60,15 @@ export default function ReportEvent (args) {
   let { defaultValues } = args
   // const { ticketsAcount, name } = args
   const { name } = args
-  defaultValues = JSON.parse(defaultValues)
+  
+  // Parse defaultValues - handle both string and object
+  try {
+    defaultValues = typeof defaultValues === 'string' ? JSON.parse(defaultValues) : (defaultValues || {})
+  } catch (error) {
+    console.error('Error parsing defaultValues in ReportUrgentEvent:', error)
+    defaultValues = {}
+  }
+  
   const router = useRouter()
 
   const {

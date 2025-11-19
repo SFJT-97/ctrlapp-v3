@@ -1,8 +1,10 @@
 // ==> 2024-10-02
 // Builtin modules
-import { useState, useEffect } from 'react'
-import { ScrollView, View } from 'react-native'
+import { useEffect, useState, useCallback } from 'react'
+import { ScrollView, View, RefreshControl } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
+import { useTheme, Text, Divider } from 'react-native-paper'
+import { useApolloClient } from '@apollo/client'
 import * as ScreenOrientation from 'expo-screen-orientation'
 import { useTranslation } from 'react-i18next'
 
@@ -11,17 +13,26 @@ import EventCarousel from '../../../home/components/event/EventCarousel'
 import Chips from '../../../home/components/event/chips'
 import Content from '../../../home/components/event/content'
 import Reaction from '../../../home/components/event/reactions'
-import { Chip, useTheme } from 'react-native-paper'
 import ShowComments from '../../../home/components/event/ShowComments'
+
+import {
+  configureReanimatedLogger,
+  ReanimatedLogLevel
+} from 'react-native-reanimated'
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false // Reanimated runs in strict mode by default, with this Im removing the false positive alert that appears in the console
+})
 
 const EventPage = () => {
   const { t } = useTranslation('report')
   const [loaded, setLoaded] = useState(false)
-  const [closed, setClosed] = useState('Open')
-  const [newState, setNewState] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const theme = useTheme()
+  const client = useApolloClient()
   let { param } = useLocalSearchParams()
-  // console.log('param', param)
+  
   try {
     if (typeof param === 'string') {
       param = JSON.parse(param)
@@ -32,35 +43,27 @@ const EventPage = () => {
   }
 
   const [orientation, setOrientation] = useState(null)
-  // console.log('par param', param)
 
   useEffect(() => {
-    if (param) {
+    if (param !== undefined) {
       try {
         setLoaded(true)
-        setNewState(newState)
-        if (closed === 'Open') {
-          setClosed('Open')
-        } else {
-          setClosed('Closed')
-        }
       } catch (error) {
         console.log('error_________________', error)
       }
     }
+
     let subscription = 1
 
     const getCurrentOrientation = async () => {
       try {
         const currentOrientation = await ScreenOrientation.getOrientationAsync()
-        // console.log('Obtenida orientación inicial:', currentOrientation)
         setOrientation(currentOrientation)
       } catch (error) {
         console.error('Error obteniendo la orientación:', error)
       }
     }
     const handleOrientationChange = (event) => {
-      // console.log('Cambio de orientación detectado:', event.orientationInfo.orientation)
       setOrientation(event.orientationInfo.orientation)
     }
     // Obtener orientación inicial
@@ -73,56 +76,176 @@ const EventPage = () => {
       // Limpiar el listener cuando el componente se desmonta
       ScreenOrientation.removeOrientationChangeListener(subscription)
     }
-  }, [])
-  if (orientation === 1) {
+  }, [param])
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      // Refetch all active queries to refresh event data, comments, and reactions
+      await client.refetchQueries({
+        include: 'active'
+      })
+    } catch (error) {
+      console.error('Error refreshing event data:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [client])
+  if (!loaded) {
     return (
-      <ScrollView>
+      <>
         <Stack.Screen
           options={{
-            title: t('sections.eventDetails'),
-            headerShown: true
+            title: t('sections.eventDetails')
           }}
         />
-        {
-          loaded && (
-            <View style={{ rowGap: 20, alignSelf: 'center', alignItems: 'center', marginBottom: 50 }}>
-              <EventCarousel param={param} rotation={orientation} />
-              <Chips param={param} />
-              <Content param={param} />
-              <View style={{ display: 'flex', justifyContent: 'space-around', rowGap: 5 }}>
-                <Reaction param={param} />
-                <Chip
-                  textStyle={{ textAlign: 'center', fontWeight: 'bold' }}
-                  style={{ backgroundColor: closed === 'Open' ? theme.colors.errorContainer : theme.colors.secondaryContainer }}
-                >
-                  Ticket: {closed}
-                </Chip>
-              </View>
-              {/* En esta parte se deberá llamar a ShowComments, y habrá que pasarle el  */}
-              <ShowComments idTicketNew={param?.idTicketNew} />
-            </View>
-          )
-        }
-      </ScrollView>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: theme.colors.onSurfaceVariant }}>Loading event...</Text>
+        </View>
+      </>
     )
-  } else {
+  }
+
+  // Portrait orientation (orientation === 1)
+  if (orientation === 1) {
     return (
-      <ScrollView>
+      <>
         <Stack.Screen
           options={{
-            title: t('sections.eventDetails'),
-            headerShown: true,
+            title: param?.classificationDescription || t('sections.eventDetails')
+          }}
+        />
+        <ScrollView
+          nestedScrollEnabled
+          style={{ flex: 1, backgroundColor: theme.colors.background }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
+        >
+          <View style={{ backgroundColor: theme.colors.surface }}>
+            {/* Image Carousel */}
+            <View style={{ marginBottom: 16 }}>
+              <EventCarousel param={param} rotation={orientation} />
+            </View>
+
+            {/* Classification Chips */}
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                paddingHorizontal: 16,
+                marginBottom: 16,
+                gap: 8
+              }}
+            >
+              <Chips param={param} />
+            </View>
+
+            <Divider style={{ marginVertical: 8 }} />
+
+            {/* Event Content */}
+            <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <Content param={param} />
+            </View>
+
+            <Divider style={{ marginVertical: 8 }} />
+
+            {/* Reactions Section */}
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                marginBottom: 16,
+                alignItems: 'center'
+              }}
+            >
+              <Reaction param={param} />
+            </View>
+
+            <Divider style={{ marginVertical: 8 }} />
+
+            {/* Comments Section */}
+            <ShowComments idTicketNew={param?.idTicketNew} />
+          </View>
+        </ScrollView>
+      </>
+    )
+  } else {
+    // Landscape orientation
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: param?.classificationDescription || t('sections.eventDetails'),
             fullScreenGestureEnabled: true
           }}
         />
-        {
-          loaded && (
-            <View style={{ rowGap: 20, alignSelf: 'center', alignItems: 'center', marginBottom: 50 }}>
+        <ScrollView
+          nestedScrollEnabled
+          style={{ flex: 1, backgroundColor: theme.colors.background }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
+        >
+          <View style={{ backgroundColor: theme.colors.surface }}>
+            {/* Image Carousel */}
+            <View style={{ marginBottom: 16 }}>
               <EventCarousel param={param} rotation={orientation} />
             </View>
-          )
-        }
-      </ScrollView>
+
+            {/* Classification Chips */}
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                paddingHorizontal: 16,
+                marginBottom: 16,
+                gap: 8
+              }}
+            >
+              <Chips param={param} />
+            </View>
+
+            <Divider style={{ marginVertical: 8 }} />
+
+            {/* Event Content */}
+            <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+              <Content param={param} />
+            </View>
+
+            <Divider style={{ marginVertical: 8 }} />
+
+            {/* Reactions Section */}
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                marginBottom: 16,
+                alignItems: 'center'
+              }}
+            >
+              <Reaction param={param} />
+            </View>
+
+            <Divider style={{ marginVertical: 8 }} />
+
+            {/* Comments Section */}
+            <ShowComments idTicketNew={param?.idTicketNew} />
+          </View>
+        </ScrollView>
+      </>
     )
   }
 }

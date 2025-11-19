@@ -1,9 +1,9 @@
 // ==> 2024-10-02
 // Builtin modules
 import { useEffect, useState, useCallback } from 'react'
-import { ScrollView, View, RefreshControl, TouchableOpacity } from 'react-native'
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router'
-import { Chip, useTheme, Text, Divider } from 'react-native-paper'
+import { ScrollView, View, RefreshControl } from 'react-native'
+import { Stack, useLocalSearchParams } from 'expo-router'
+import { useTheme, Text, Divider } from 'react-native-paper'
 import { useApolloClient } from '@apollo/client'
 
 // Custom modules
@@ -25,30 +25,15 @@ configureReanimatedLogger({
 
 const EventPage = () => {
   const [loaded, setLoaded] = useState(false)
-  const [closed, setClosed] = useState('Open')
   const [refreshing, setRefreshing] = useState(false)
   const theme = useTheme()
   const client = useApolloClient()
-  const router = useRouter()
   const param = useLocalSearchParams()
-
-  const handleStatusChipPress = useCallback(() => {
-    router.push({
-      pathname: '/report/searchEvent',
-      params: {
-        filterStatus: closed
-      }
-    })
-  }, [router, closed])
 
   useEffect(() => {
     if (param !== undefined) {
       try {
         setLoaded(true)
-        // Determine ticket status from param if available
-        if (param.status) {
-          setClosed(param.status)
-        }
       } catch (error) {
         console.log('error_________________', error)
       }
@@ -110,7 +95,7 @@ const EventPage = () => {
             <EventCarousel param={param} />
           </View>
 
-          {/* Classification and Status Chips */}
+          {/* Classification Chips */}
           <View
             style={{
               flexDirection: 'row',
@@ -121,20 +106,6 @@ const EventPage = () => {
             }}
           >
             <Chips param={param} />
-            <TouchableOpacity onPress={handleStatusChipPress}>
-              <Chip
-                textStyle={{ textAlign: 'center', fontWeight: 'bold', fontSize: 12 }}
-                style={{
-                  backgroundColor:
-                    closed === 'Open'
-                      ? theme.colors.errorContainer
-                      : theme.colors.secondaryContainer,
-                  height: 32
-                }}
-              >
-                Status: {closed}
-              </Chip>
-            </TouchableOpacity>
           </View>
 
           <Divider style={{ marginVertical: 8 }} />
@@ -151,7 +122,8 @@ const EventPage = () => {
             style={{
               paddingHorizontal: 16,
               paddingVertical: 12,
-              marginBottom: 16
+              marginBottom: 16,
+              alignItems: 'center'
             }}
           >
             <Reaction param={param} />

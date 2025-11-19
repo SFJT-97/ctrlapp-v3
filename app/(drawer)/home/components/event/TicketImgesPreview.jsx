@@ -5,7 +5,7 @@ import { gql, useMutation } from '@apollo/client'
 import { Video, ResizeMode } from 'expo-av'
 
 // global variables
-import { DEFAULT_IMAGE, DEFAULT_IMAGE2 } from '../../../../../globals/variables/globalVariables'
+import { EMARAY_MOVILE_JPG, DEFAULT_IMAGE2 } from '../../../../../globals/variables/globalVariables'
 
 const getSignedUrlFromCacheQ = gql`
   mutation GetSignedUrlFromCache($idSiMMediaURL: ID!) {
@@ -19,7 +19,7 @@ const WIDTH = Dimensions.get('screen').width
 export const TicketImagesPreview = ({ item, setLoadingImages }) => {
   const [getURL] = useMutation(getSignedUrlFromCacheQ)
   const [loaded, setLoaded] = useState(false)
-  const [keys, setKeys] = useState([DEFAULT_IMAGE])
+  const [keys, setKeys] = useState([EMARAY_MOVILE_JPG])
   const [videoKey, setVideoKey] = useState(null)
   const videoRef = useRef(null) // referencia para controlar el video
   const [isPLaying, setIsPlaying] = useState(true)
@@ -123,7 +123,7 @@ export const TicketImagesPreview = ({ item, setLoadingImages }) => {
                 <ImageBackground
                   key={el}
                   style={{ width: 100, height: 50 }}
-                  source={{ uri: DEFAULT_IMAGE }}
+                  source={{ uri: EMARAY_MOVILE_JPG }}
                   fadeDuration={400}
                   resizeMode='contain' // contain
                   resizeMethod='resize'

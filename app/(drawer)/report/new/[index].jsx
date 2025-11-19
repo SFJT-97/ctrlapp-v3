@@ -40,18 +40,31 @@ const AlertSwitch = ({ isSwitchOn, onToggleSwitch }) => {
 export default function NewReport () {
   const [isSwitchOn, setIsSwitchOn] = useState(false)
   const [eventNumber, setEventNumber] = useState(null)
+  const [defaultValues, setDefaultValues] = useState(null)
   // const theme = useTheme()
 
   const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn)
   const params = useLocalSearchParams()
   const ticketsAcount = params?.ticketsAcount
   const name = params?.name
-  let defaultValues = params?.defaultValues
 
   useEffect(() => {
-    defaultValues = JSON.parse(defaultValues)
+    // Parse defaultValues properly with error handling
+    try {
+      if (params?.defaultValues) {
+        const parsed = typeof params.defaultValues === 'string' 
+          ? JSON.parse(params.defaultValues) 
+          : params.defaultValues
+        setDefaultValues(parsed)
+      } else {
+        setDefaultValues({})
+      }
+    } catch (error) {
+      console.error('Error parsing defaultValues:', error)
+      setDefaultValues({})
+    }
     setEventNumber(ticketsAcount)
-  }, [])
+  }, [params?.defaultValues, ticketsAcount])
 
   useEffect(() => setEventNumber(ticketsAcount), [ticketsAcount])
 
@@ -66,13 +79,15 @@ export default function NewReport () {
       <View style={{ rowGap: 30, marginHorizontal: 15, marginTop: 25, marginBottom: 60 }}>
         <AlertSwitch isSwitchOn={isSwitchOn} onToggleSwitch={onToggleSwitch} />
         <LockOrientation />
-        {isSwitchOn
-          ? (
-            <ReportUrgentEvent ticketsAcount={ticketsAcount} name={name} defaultValues={defaultValues} />
-            )
-          : (
-            <ReportEvent ticketsAcount={ticketsAcount} name={name} defaultValues={defaultValues} />
-            )}
+        {defaultValues !== null && (
+          isSwitchOn
+            ? (
+              <ReportUrgentEvent ticketsAcount={ticketsAcount} name={name} defaultValues={defaultValues} />
+              )
+            : (
+              <ReportEvent ticketsAcount={ticketsAcount} name={name} defaultValues={defaultValues} />
+              )
+        )}
 
       </View>
 

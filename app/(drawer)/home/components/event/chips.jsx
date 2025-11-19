@@ -1,5 +1,5 @@
 // Builtin modules
-import { Dimensions, View } from 'react-native'
+import { View } from 'react-native'
 import { useTheme, Chip, Text } from 'react-native-paper'
 
 // Red scale colors for risk qualification
@@ -33,11 +33,10 @@ const getSolutionColor = (solutionType) => {
 const Chips = ({ param }) => {
   const theme = useTheme()
 
-  const width = Dimensions.get('window').width
   // Para la versión 2, conviene ver de activar los tooltips
   if (param?.classification === 'ARI' || param?.classification === 'PEI') {
     return (
-      <View style={{ width, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+      <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {param?.type && (
           <Chip style={{ backgroundColor: theme.colors.primary }}>
             <Text style={{ textTransform: 'capitalize', color: theme.colors.onPrimary }}>
@@ -70,7 +69,7 @@ const Chips = ({ param }) => {
     )
   } else {
     return (
-      <View style={{ width, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
+      <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {param?.type && (
           <Chip style={{ backgroundColor: theme.colors.primary }}>
             <Text style={{ textTransform: 'capitalize', color: theme.colors.onPrimary }}>

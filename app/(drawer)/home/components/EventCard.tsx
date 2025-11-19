@@ -7,7 +7,7 @@ import Carousel from 'react-native-reanimated-carousel'
 
 import EventCardHeader from './EventCardHeader'
 import EventCardFooter from './EventCardFooter'
-import { DEFAULT_IMAGE } from '../../../../globals/variables/globalVariables'
+import { EMARAY_MOVILE_JPG } from '../../../../globals/variables/globalVariables'
 
 const allCommentsFromTicketNewQ = gql`
   query AllCommentsFromTicketNew($idTicketNew: ID!) {
@@ -50,7 +50,7 @@ interface EventCardProps {
   onPress?: () => void
 }
 
-const DEFAULT_PLACEHOLDER = DEFAULT_IMAGE
+const DEFAULT_PLACEHOLDER = EMARAY_MOVILE_JPG
 
 // Red scale for risk qualification (danger levels)
 const riskColors = {
